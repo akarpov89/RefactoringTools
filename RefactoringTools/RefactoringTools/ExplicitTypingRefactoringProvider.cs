@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeRefactorings;
+using Microsoft.CodeAnalysis.MSBuild;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,13 +12,11 @@ using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.MSBuild;
-
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(ImplicitTypingRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
-    internal class ImplicitTypingRefactoringProvider : ICodeRefactoringProvider
+    [ExportCodeRefactoringProvider(ExplicitTypingRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
+    internal class ExplicitTypingRefactoringProvider : ICodeRefactoringProvider
     {
         private static readonly Lazy<MSBuildWorkspace> LazyDefaultWorkspace = new Lazy<MSBuildWorkspace>(() => MSBuildWorkspace.Create());
 
@@ -26,7 +25,7 @@ namespace RefactoringTools
             get { return LazyDefaultWorkspace.Value; }
         }
 
-        public const string RefactoringId = "Type To Var Refactoring";
+        public const string RefactoringId = "Explicit typing";
 
         public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
@@ -44,7 +43,7 @@ namespace RefactoringTools
             {
                 var declarationStatement = (LocalDeclarationStatementSyntax)node;
                 variableDeclaration = declarationStatement.Declaration;
-            }                                  
+            }            
             else
             {
                 variableDeclaration = node.TryFindParentWithinStatement<VariableDeclarationSyntax>(SyntaxKind.VariableDeclaration);
@@ -53,28 +52,40 @@ namespace RefactoringTools
             if (variableDeclaration == null)
                 return null;
 
-            var value = variableDeclaration.Variables.FirstOrDefault()?.Initializer?.Value;
-            if (value == null)
-                return null;
-
-            if (variableDeclaration?.Variables.Count > 1)
-                return null;
-
             if (variableDeclaration.Type.IsKind(SyntaxKind.IdentifierName))
             {
                 var typeName = (IdentifierNameSyntax)variableDeclaration.Type;
-                if (typeName.Identifier.Text == "var")
+                if (typeName.Identifier.Text != "var")
                     return null;
             }
-            
-            var action = CodeAction.Create("Use implicit typing", c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
+            else
+            {
+                return null;
+            }
+
+            var value = variableDeclaration.Variables.FirstOrDefault()?.Initializer?.Value;
+            if (value == null)
+                return null;            
+
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+            var variableType = semanticModel.GetTypeInfo(value, cancellationToken);
+
+            if (variableType.Type.IsAnonymousType)
+                return null;
+
+            var action = CodeAction.Create("Use explicit typing", c => UseExplicitTyping(document, variableDeclaration, variableType.Type, cancellationToken));
 
             return new[] { action };
-        }        
+        }
 
-        private async Task<Solution> UseImplicitTyping(Document document, VariableDeclarationSyntax declaration, CancellationToken cancellationToken)
+        private async Task<Solution> UseExplicitTyping(Document document, VariableDeclarationSyntax declaration, ITypeSymbol variableType, CancellationToken cancellationToken)
         {
-            var typeSyntax = SyntaxFactory.ParseTypeName("var");
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+            var typeName = variableType.ToMinimalDisplayString(semanticModel, declaration.SpanStart);
+
+            var typeSyntax = SyntaxFactory.ParseTypeName(typeName);
 
             var newDeclaration = declaration
                 .WithType(typeSyntax)
@@ -83,7 +94,7 @@ namespace RefactoringTools
 
             var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
-            syntaxRoot = syntaxRoot.ReplaceNode(declaration, newDeclaration);            
+            syntaxRoot = syntaxRoot.ReplaceNode(declaration, newDeclaration);
 
             syntaxRoot = Formatter.Format(syntaxRoot, DefaultWorkspace);
 
