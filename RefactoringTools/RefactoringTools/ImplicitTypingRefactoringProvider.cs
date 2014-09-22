@@ -39,6 +39,11 @@ namespace CodeRefactoring1
             {
                 variableDeclaration = (VariableDeclarationSyntax)node.Parent;
             }
+            else if (node.IsKind(SyntaxKind.LocalDeclarationStatement))
+            {
+                var declarationStatement = (LocalDeclarationStatementSyntax)node;
+                variableDeclaration = declarationStatement.Declaration;
+            }
             else if ((node.IsKind(SyntaxKind.IdentifierName) || node.IsKind(SyntaxKind.PredefinedType) || node.IsKind(SyntaxKind.GenericName) || node.IsKind(SyntaxKind.NullableType))
                 && node.Parent.IsKind(SyntaxKind.VariableDeclaration))
             {
@@ -51,18 +56,7 @@ namespace CodeRefactoring1
                 }
 
                 variableDeclaration = (VariableDeclarationSyntax)node.Parent;
-            }
-            else if (node.IsKind(SyntaxKind.VariableDeclarator))
-            {
-                variableDeclaration = (VariableDeclarationSyntax)node.Parent;
-            }
-            else if (
-                node.IsKind(SyntaxKind.ObjectCreationExpression) &&
-                node.Parent.IsKind(SyntaxKind.EqualsValueClause) &&
-                node.Parent.Parent.IsKind(SyntaxKind.VariableDeclarator))
-            {
-                variableDeclaration = (VariableDeclarationSyntax)node.Parent.Parent.Parent;
-            }
+            }                        
             else
             {
                 variableDeclaration = TryFindParentVariableDeclaration(node);
@@ -79,7 +73,7 @@ namespace CodeRefactoring1
 
             var type = semanticModel.GetTypeInfo(value).Type;
 
-            if (type.IsAnonymousType || !type.CanBeReferencedByName)
+            if (type.IsAnonymousType)
                 return null;
 
             var action = CodeAction.Create("Use implicit typing", c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
@@ -89,82 +83,45 @@ namespace CodeRefactoring1
 
         private static VariableDeclarationSyntax TryFindParentVariableDeclaration(SyntaxNode node)
         {
-            Dictionary<VariableDeclarationSyntax, IEnumerable<Dictionary<int?, string>>> xx = new Dictionary<VariableDeclarationSyntax, IEnumerable<Dictionary<int?, string>>>();
-
-            if (node.IsKind(SyntaxKind.IdentifierName) || node.IsKind(SyntaxKind.PredefinedType) || node.IsKind(SyntaxKind.GenericName) || node.IsKind(SyntaxKind.TypeArgumentList))
+            do
             {
-                if (node.Parent.IsKind(SyntaxKind.NullableType))
-                {
-                    if (node.Parent.Parent.IsKind(SyntaxKind.VariableDeclaration))
-                    {
-                        return (VariableDeclarationSyntax)node.Parent.Parent;
-                    }
+                node = node.Parent;
 
-                    node = node.Parent.Parent;
-                }
-                else if (node.Parent.IsKind(SyntaxKind.GenericName))
+                switch (node.CSharpKind())
                 {
-                    node = node.Parent;
-                }
-                else if (node.Parent.IsKind(SyntaxKind.TypeArgumentList))
-                {
-                    var genericName = node.Parent.Parent;
-
-                    node = genericName.Parent;
-                }
-                else if (node.Parent.IsKind(SyntaxKind.GenericName))
-                {
-                    node = node.Parent.Parent;
-                }
-                else if (
-                    node.Parent.IsKind(SyntaxKind.ObjectCreationExpression) &&
-                    node.Parent.Parent.IsKind(SyntaxKind.EqualsValueClause) &&
-                    node.Parent.Parent.Parent.IsKind(SyntaxKind.VariableDeclarator))
-                {
-                    return (VariableDeclarationSyntax)node.Parent.Parent.Parent.Parent;
-                }
-                else
-                {
-                    return null;
-                }
-
-                while (!node.IsKind(SyntaxKind.VariableDeclaration))
-                {
-                    if (node.IsKind(SyntaxKind.TypeArgumentList))
-                    {
-                        var genericName = node.Parent;
-                        node = genericName.Parent;
-                    }
-                    else if (node.IsKind(SyntaxKind.GenericName))
-                    {
-                        node = node.Parent;
-                    }
-                    else if (
-                        node.Parent.IsKind(SyntaxKind.ObjectCreationExpression) &&
-                        node.Parent.Parent.IsKind(SyntaxKind.EqualsValueClause) &&
-                        node.Parent.Parent.Parent.IsKind(SyntaxKind.VariableDeclarator))
-                    {
-                        node = node.Parent.Parent.Parent.Parent;
-                    }
-                    else if (
-                        node.IsKind(SyntaxKind.ObjectCreationExpression) &&
-                        node.Parent.IsKind(SyntaxKind.EqualsValueClause) &&
-                        node.Parent.Parent.IsKind(SyntaxKind.VariableDeclarator))
-                    {
-                        node = node.Parent.Parent.Parent;
-                    }
-                    else
-                    {
+                    case SyntaxKind.ExpressionStatement:
+                    case SyntaxKind.LabeledStatement:
+                    case SyntaxKind.GotoStatement:
+                    case SyntaxKind.GotoCaseStatement:
+                    case SyntaxKind.GotoDefaultStatement:
+                    case SyntaxKind.ReturnStatement:
+                    case SyntaxKind.YieldReturnStatement:
+                    case SyntaxKind.ThrowStatement:
+                    case SyntaxKind.WhileStatement:
+                    case SyntaxKind.DoStatement:
+                    case SyntaxKind.ForStatement:
+                    case SyntaxKind.ForEachStatement:
+                    case SyntaxKind.UsingStatement:
+                    case SyntaxKind.FixedStatement:
+                    case SyntaxKind.CheckedStatement:
+                    case SyntaxKind.UncheckedStatement:
+                    case SyntaxKind.UnsafeStatement:
+                    case SyntaxKind.LockStatement:
+                    case SyntaxKind.IfStatement:
+                    case SyntaxKind.SwitchStatement:                     
+                    case SyntaxKind.TryStatement:
+                    case SyntaxKind.MethodDeclaration:
+                    case SyntaxKind.ClassDeclaration:
+                    case SyntaxKind.NamespaceDeclaration:
                         return null;
-                    }
+                    
+                    default:
+                        break;
                 }
 
-                return (VariableDeclarationSyntax)node;
-            }
-            else
-            {
-                return null;
-            }
+            } while (!node.IsKind(SyntaxKind.VariableDeclaration));
+
+            return (VariableDeclarationSyntax)node;
         }
 
         private async Task<Solution> UseImplicitTyping(Document document, VariableDeclarationSyntax declaration, CancellationToken cancellationToken)
