@@ -26,7 +26,7 @@ namespace RefactoringTools
             get { return LazyDefaultWorkspace.Value; }
         }
 
-        public const string RefactoringId = "Type To Var Refactoring";
+        public const string RefactoringId = "ImplicitTypingRefactoringProvider";
 
         public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
@@ -62,11 +62,17 @@ namespace RefactoringTools
 
             if (variableDeclaration.Type.IsKind(SyntaxKind.IdentifierName))
             {
-                var typeName = (IdentifierNameSyntax)variableDeclaration.Type;
-                if (typeName.Identifier.Text == "var")
+                if (variableDeclaration.Type.IsVar)
+                    return null;                
+            }
+
+            if (variableDeclaration.Parent.IsKind(SyntaxKind.LocalDeclarationStatement))
+            {
+                var declarationStatement = (LocalDeclarationStatementSyntax)variableDeclaration.Parent;
+                if (declarationStatement.IsConst)
                     return null;
             }
-            
+
             var action = CodeAction.Create("Use implicit typing", c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
 
             return new[] { action };

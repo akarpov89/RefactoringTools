@@ -25,7 +25,7 @@ namespace RefactoringTools
             get { return LazyDefaultWorkspace.Value; }
         }
 
-        public const string RefactoringId = "Explicit typing";
+        public const string RefactoringId = "ExplicitTypingRefactoringProvider";
 
         public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
@@ -53,9 +53,8 @@ namespace RefactoringTools
                 return null;
 
             if (variableDeclaration.Type.IsKind(SyntaxKind.IdentifierName))
-            {
-                var typeName = (IdentifierNameSyntax)variableDeclaration.Type;
-                if (typeName.Identifier.Text != "var")
+            {                
+                if (!variableDeclaration.Type.IsVar)
                     return null;
             }
             else
