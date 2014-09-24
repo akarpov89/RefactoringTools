@@ -105,6 +105,7 @@
     <Compile Include="SyntaxNodeExtensions.cs" />
     <Compile Include="TupleCreateRefactoringProvider.cs" />
     <Compile Include="TupleNewRefactoringProvider.cs" />
+    <Compile Include="UnchainMethodsRefactoringProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
