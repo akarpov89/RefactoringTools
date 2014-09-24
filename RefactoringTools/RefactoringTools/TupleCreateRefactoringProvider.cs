@@ -36,9 +36,7 @@ namespace RefactoringTools
 
                 if (objectCreationSyntax == null)
                     return null;
-            }
-
-            var t = new Tuple<int, string>(1, "str");
+            }            
 
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 

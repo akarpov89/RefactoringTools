@@ -58,9 +58,9 @@ namespace RefactoringTools
             return (TSyntaxNode)node;
         }
 
-        public static SyntaxNode Format(this SyntaxNode node)
+        public static T Format<T>(this T node) where T : SyntaxNode
         {
-            return Formatter.Format(node, LazyDefaultWorkspace.Value);
+            return (T)Formatter.Format(node, LazyDefaultWorkspace.Value);
         }
 
         
