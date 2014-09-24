@@ -1,5 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.MSBuild;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +12,8 @@ namespace RefactoringTools
 {
     public static class SyntaxNodeExtensions
     {
+        private static readonly Lazy<MSBuildWorkspace> LazyDefaultWorkspace = new Lazy<MSBuildWorkspace>(() => MSBuildWorkspace.Create());
+
         public static TSyntaxNode TryFindParentWithinStatement<TSyntaxNode>(this SyntaxNode node, SyntaxKind kind)
             where TSyntaxNode : SyntaxNode
         {
@@ -53,5 +57,12 @@ namespace RefactoringTools
 
             return (TSyntaxNode)node;
         }
+
+        public static SyntaxNode Format(this SyntaxNode node)
+        {
+            return Formatter.Format(node, LazyDefaultWorkspace.Value);
+        }
+
+        
     }
 }

@@ -15,17 +15,10 @@ using Microsoft.CodeAnalysis.Formatting;
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(ExplicitTypingRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
-    internal class ExplicitTypingRefactoringProvider : ICodeRefactoringProvider
+    [ExportCodeRefactoringProvider(ChangeTypingRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
+    internal class ChangeTypingRefactoringProvider : ICodeRefactoringProvider
     {
-        private static readonly Lazy<MSBuildWorkspace> LazyDefaultWorkspace = new Lazy<MSBuildWorkspace>(() => MSBuildWorkspace.Create());
-
-        private static MSBuildWorkspace DefaultWorkspace
-        {
-            get { return LazyDefaultWorkspace.Value; }
-        }
-
-        public const string RefactoringId = "ExplicitTypingRefactoringProvider";
+        public const string RefactoringId = "ChangeTypingRefactoringProvider";
 
         public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
@@ -43,7 +36,7 @@ namespace RefactoringTools
             {
                 var declarationStatement = (LocalDeclarationStatementSyntax)node;
                 variableDeclaration = declarationStatement.Declaration;
-            }            
+            }
             else
             {
                 variableDeclaration = node.TryFindParentWithinStatement<VariableDeclarationSyntax>(SyntaxKind.VariableDeclaration);
@@ -52,30 +45,43 @@ namespace RefactoringTools
             if (variableDeclaration == null)
                 return null;
 
-            if (variableDeclaration.Type.IsKind(SyntaxKind.IdentifierName))
-            {                
-                if (!variableDeclaration.Type.IsVar)
+            var value = variableDeclaration.Variables.FirstOrDefault()?.Initializer?.Value;
+            if (value == null)
+                return null;
+
+            if (variableDeclaration?.Variables.Count > 1)
+                return null;
+
+            if (variableDeclaration.Type.IsKind(SyntaxKind.IdentifierName) && variableDeclaration.Type.IsVar)
+            {
+                // To explicit
+
+                var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+                var variableType = semanticModel.GetTypeInfo(value, cancellationToken);
+
+                if (variableType.Type.IsAnonymousType)
                     return null;
+
+                var action = CodeAction.Create("Use explicit typing", c => UseExplicitTyping(document, variableDeclaration, variableType.Type, cancellationToken));
+
+                return new[] { action };
             }
             else
             {
-                return null;
+                // To implicit
+
+                if (variableDeclaration.Parent.IsKind(SyntaxKind.LocalDeclarationStatement))
+                {
+                    var declarationStatement = (LocalDeclarationStatementSyntax)variableDeclaration.Parent;
+                    if (declarationStatement.IsConst)
+                        return null;
+                }
+
+                var action = CodeAction.Create("Use var", c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
+
+                return new[] { action };
             }
-
-            var value = variableDeclaration.Variables.FirstOrDefault()?.Initializer?.Value;
-            if (value == null)
-                return null;            
-
-            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-
-            var variableType = semanticModel.GetTypeInfo(value, cancellationToken);
-
-            if (variableType.Type.IsAnonymousType)
-                return null;
-
-            var action = CodeAction.Create("Use explicit typing", c => UseExplicitTyping(document, variableDeclaration, variableType.Type, cancellationToken));
-
-            return new[] { action };
         }
 
         private async Task<Solution> UseExplicitTyping(Document document, VariableDeclarationSyntax declaration, ITypeSymbol variableType, CancellationToken cancellationToken)
@@ -95,7 +101,25 @@ namespace RefactoringTools
 
             syntaxRoot = syntaxRoot.ReplaceNode(declaration, newDeclaration);
 
-            syntaxRoot = Formatter.Format(syntaxRoot, DefaultWorkspace);
+            syntaxRoot = syntaxRoot.Format();
+
+            return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
+        }
+
+        private async Task<Solution> UseImplicitTyping(Document document, VariableDeclarationSyntax declaration, CancellationToken cancellationToken)
+        {
+            var typeSyntax = SyntaxFactory.ParseTypeName("var");
+
+            var newDeclaration = declaration
+                .WithType(typeSyntax)
+                .WithLeadingTrivia(declaration.GetLeadingTrivia())
+                .WithTrailingTrivia(declaration.GetTrailingTrivia());
+
+            var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+
+            syntaxRoot = syntaxRoot.ReplaceNode(declaration, newDeclaration);
+
+            syntaxRoot = syntaxRoot.Format();
 
             return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
         }
