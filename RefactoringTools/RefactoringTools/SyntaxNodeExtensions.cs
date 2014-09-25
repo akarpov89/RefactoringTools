@@ -143,9 +143,7 @@ namespace RefactoringTools
 
         public static T Format<T>(this T node) where T : SyntaxNode
         {
-            return (T)Formatter.Format(node, LazyDefaultWorkspace.Value);
+            return node.WithAdditionalAnnotations(Formatter.Annotation);
         }
-
-        
     }
 }
