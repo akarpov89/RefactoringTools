@@ -24,7 +24,18 @@ namespace RefactoringTools
 
             var node = root.FindNode(span);
 
-            var outerInvocation = node.TryFindOuterMostParentWithinStatement<InvocationExpressionSyntax>(SyntaxKind.InvocationExpression);
+            var statement = node as StatementSyntax;
+
+            InvocationExpressionSyntax outerInvocation = null;
+
+            if (statement != null)
+            {
+                 outerInvocation = (InvocationExpressionSyntax) statement.DescendantNodes().FirstOrDefault(s => s.IsKind(SyntaxKind.InvocationExpression));
+            }
+            else
+            {
+                outerInvocation = node.TryFindOuterMostParentWithinStatement<InvocationExpressionSyntax>(SyntaxKind.InvocationExpression);
+            }
 
             if (outerInvocation == null)
                 return null;
