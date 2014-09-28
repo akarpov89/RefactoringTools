@@ -13,7 +13,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
+    //[ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
     internal class UnchainMethodCallsRefactoringProvider : ICodeRefactoringProvider
     {
         public const string RefactoringId = "UnchainMethodsRefactoringProvider";
@@ -69,8 +69,6 @@ namespace RefactoringTools
 
             return new Optional<InvocationExpressionSyntax>((InvocationExpressionSyntax)memberAccess.Expression);
         }
-
-        private static readonly SyntaxAnnotation MyRenameAnnotation = RenameAnnotation.Create();
 
         private InvocationExpressionSyntax Unchain(InvocationExpressionSyntax outerInvocation, List<LocalDeclarationStatementSyntax> declarations)
         {

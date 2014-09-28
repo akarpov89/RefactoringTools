@@ -13,7 +13,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
+    //[ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
     internal class ChainMethodCallsRefactoringProvider : ICodeRefactoringProvider 
     {
         public const string RefactoringId = "ChainMethodsRefactoringProvider";
@@ -82,7 +82,7 @@ namespace RefactoringTools
                 var invocation = (InvocationExpressionSyntax)s;
 
                 if (!invocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
-                    return false;
+                    return false;                
 
                 var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
 

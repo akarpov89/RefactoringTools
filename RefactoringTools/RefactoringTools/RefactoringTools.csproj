@@ -106,6 +106,7 @@
     <Compile Include="SyntaxNodeExtensions.cs" />
     <Compile Include="TupleCreateRefactoringProvider.cs" />
     <Compile Include="TupleNewRefactoringProvider.cs" />
+    <Compile Include="UnchainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="UnchainMethodCallsRefactoringProvider.cs" />
   </ItemGroup>
   <ItemGroup>
