@@ -100,7 +100,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChainConditionalMethodCallsRefactoringProvider.cs" />
-    <Compile Include="ChainMethodCallsRefactoringProvider.cs" />
     <Compile Include="ChangeTypingRefactoringProvider.cs" />
     <Compile Include="StringExtensionRefactoringProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -108,7 +107,6 @@
     <Compile Include="TupleCreateRefactoringProvider.cs" />
     <Compile Include="TupleNewRefactoringProvider.cs" />
     <Compile Include="UnchainConditionalMethodCallsRefactoringProvider.cs" />
-    <Compile Include="UnchainMethodCallsRefactoringProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

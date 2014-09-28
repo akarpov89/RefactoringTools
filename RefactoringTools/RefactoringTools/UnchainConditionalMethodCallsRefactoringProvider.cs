@@ -56,7 +56,7 @@ namespace RefactoringTools
                 statement = node.TryFindParentStatement();
             }
 
-            if (statement == null)
+            if (statement == null || statement.IsKind(SyntaxKind.Block))
                 return null;
 
             var outer = statement.DescendantNodes().FirstOrDefault(x =>
