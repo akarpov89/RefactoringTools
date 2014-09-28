@@ -99,6 +99,7 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ChainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="ChainMethodCallsRefactoringProvider.cs" />
     <Compile Include="ChangeTypingRefactoringProvider.cs" />
     <Compile Include="StringExtensionRefactoringProvider.cs" />

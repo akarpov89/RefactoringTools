@@ -59,8 +59,6 @@ namespace RefactoringTools
             if (statement == null)
                 return null;
 
-            //var xxx = statement?.DescendantNodes()?.Where(x => true)?.All();
-
             var outer = statement.DescendantNodes().FirstOrDefault(x =>
             {
                 if (x.IsKind(SyntaxKind.ConditionalAccessExpression))
@@ -130,10 +128,6 @@ namespace RefactoringTools
             
             var declarations = new List<LocalDeclarationStatementSyntax>();
 
-            //var newOuter = Unchain(outer, declarations);
-
-            //return null;
-            
             var action = CodeAction.Create("Unchain calls", c => UnchainMultipleMethodCalls(document, outer, cancellationToken));
 
             return new[] { action };
@@ -335,99 +329,6 @@ namespace RefactoringTools
 
             return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
         }
-
-        private async Task<Solution> UnchainMultipleMethodCalls(Document document, InvocationExpressionSyntax outer, InvocationExpressionSyntax inner, CancellationToken cancellationToken)
-        {
-            var declarations = new List<LocalDeclarationStatementSyntax>();
-
-            var newOuterInvocation = Unchain(outer, declarations);
-
-            var parentStatement = outer.TryFindParentStatement();
-            var parentBlock = outer.TryFindParentBlock();
-
-            var statements = parentBlock.Statements;
-            var index = statements.IndexOf(parentStatement);
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-
-            syntaxRoot = syntaxRoot.ReplaceNodes(new SyntaxNode[] { outer, parentBlock }, (oldNode, newNode) =>
-            {
-                if (oldNode == outer)
-                {
-                    return newOuterInvocation;
-                }
-                else if (oldNode == parentBlock)
-                {
-                    var updatedBlock = newNode as BlockSyntax;
-
-                    var newStatements = updatedBlock.Statements.InsertRange(index, declarations);
-
-                    var newBlock = SyntaxFactory.Block(newStatements);
-
-                    return newBlock;
-                }
-                else
-                {
-                    return null;
-                }
-            });
-
-
-            syntaxRoot = syntaxRoot.Format();
-
-            return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
-        }
-
-
-        private async Task<Solution> UnchainMethodCalls(Document document, InvocationExpressionSyntax outer, InvocationExpressionSyntax inner, CancellationToken cancellationToken)
-        {
-            var equalsValue = SyntaxFactory.EqualsValueClause(inner);
-
-            var declarator = SyntaxFactory.VariableDeclarator("newVar").WithInitializer(equalsValue);
-            declarator = declarator.ReplaceToken(declarator.Identifier, declarator.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create()));
-
-            var typeSyntax = SyntaxFactory.IdentifierName("var");
-            var variableDeclaration = SyntaxFactory.VariableDeclaration(typeSyntax, new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(declarator));
-            var declarationStatement = SyntaxFactory.LocalDeclarationStatement(variableDeclaration);
-
-            var identifier = SyntaxFactory.IdentifierName(declarator.Identifier);
-            var outerMemberAccess = (MemberAccessExpressionSyntax)outer.Expression;
-            var memberAccess = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, identifier, outerMemberAccess.Name);
-            var newOuterInvocation = SyntaxFactory.InvocationExpression(memberAccess, outer.ArgumentList);
-
-            var parentStatement = outer.TryFindParentStatement();
-            var parentBlock = outer.TryFindParentBlock();
-
-            var statements = parentBlock.Statements;
-            var index = statements.IndexOf(parentStatement);
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-
-            syntaxRoot = syntaxRoot.ReplaceNodes(new SyntaxNode[] { outer, parentBlock }, (oldNode, newNode) =>
-            {
-                if (oldNode == outer)
-                {
-                    return newOuterInvocation;
-                }
-                else if (oldNode == parentBlock)
-                {
-                    var updatedBlock = newNode as BlockSyntax;
-
-                    var newStatements = updatedBlock.Statements.Insert(index, declarationStatement);
-                    var newBlock = SyntaxFactory.Block(newStatements);
-
-                    return newBlock;
-                }
-                else
-                {
-                    return null;
-                }
-            });
-
-
-            syntaxRoot = syntaxRoot.Format();
-
-            return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
-        }
+                
     }
 }
