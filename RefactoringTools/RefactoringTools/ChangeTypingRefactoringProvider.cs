@@ -15,12 +15,13 @@ using Microsoft.CodeAnalysis.Formatting;
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(ChangeTypingRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
+    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
     internal class ChangeTypingRefactoringProvider : ICodeRefactoringProvider
     {
         public const string RefactoringId = "ChangeTypingRefactoringProvider";
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -39,7 +40,8 @@ namespace RefactoringTools
             }
             else
             {
-                variableDeclaration = node.TryFindParentWithinStatement<VariableDeclarationSyntax>(SyntaxKind.VariableDeclaration);
+                variableDeclaration = 
+                    node.TryFindParentWithinStatement<VariableDeclarationSyntax>(SyntaxKind.VariableDeclaration);
             }
 
             if (variableDeclaration == null)
@@ -63,7 +65,9 @@ namespace RefactoringTools
                 if (variableType.Type.IsAnonymousType)
                     return null;
 
-                var action = CodeAction.Create("Use explicit typing", c => UseExplicitTyping(document, variableDeclaration, variableType.Type, cancellationToken));
+                var action = CodeAction.Create(
+                    "Use explicit typing", 
+                    c => UseExplicitTyping(document, variableDeclaration, variableType.Type, c));
 
                 return new[] { action };
             }
@@ -78,13 +82,18 @@ namespace RefactoringTools
                         return null;
                 }
 
-                var action = CodeAction.Create("Use var", c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
+                var action = CodeAction.Create(
+                    "Use var", 
+                    c => UseImplicitTyping(document, variableDeclaration, cancellationToken));
 
                 return new[] { action };
             }
         }
 
-        private async Task<Solution> UseExplicitTyping(Document document, VariableDeclarationSyntax declaration, ITypeSymbol variableType, CancellationToken cancellationToken)
+        private async Task<Solution> UseExplicitTyping(
+            Document document, 
+            VariableDeclarationSyntax declaration, ITypeSymbol variableType, 
+            CancellationToken cancellationToken)
         {
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
@@ -106,7 +115,8 @@ namespace RefactoringTools
             return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
         }
 
-        private async Task<Solution> UseImplicitTyping(Document document, VariableDeclarationSyntax declaration, CancellationToken cancellationToken)
+        private async Task<Solution> UseImplicitTyping(
+            Document document, VariableDeclarationSyntax declaration, CancellationToken cancellationToken)
         {
             var typeSyntax = SyntaxFactory.ParseTypeName("var");
 

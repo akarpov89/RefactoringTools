@@ -18,7 +18,8 @@ namespace RefactoringTools
     {
         public const string RefactoringId = "ChainConditionalMethodCallsRefactoringProvider";
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -29,7 +30,7 @@ namespace RefactoringTools
 
             var block = (BlockSyntax)node;
 
-            var selectedStatements = block.Statements.Where(s => s.SpanStart >= span.Start && s.SpanStart <= span.End).ToList();
+            var selectedStatements = block.Statements.Where(s => s.IsWithin(span)).ToList();
             var lastStatementInBlock = block.Statements.Last();
 
             if (selectedStatements.Count < 2)
@@ -118,23 +119,31 @@ namespace RefactoringTools
             if (lastExpression == null)
                 return null;
 
-            int lastVariableReferencesCount = GetReferencesCount(lastVariableName, block, selectionStartIndex + selectedStatements.Count - 1);
+            int lastVariableReferencesCount = GetReferencesCount(
+                lastVariableName, 
+                block, 
+                selectionStartIndex + selectedStatements.Count - 1);
 
             if (lastVariableReferencesCount > 1)
                 return null;
 
             var declarations = selectedStatements.Take(selectedStatements.Count - 1).ToList();
 
-            var action = CodeAction.Create("Chain calls", c => ChainMethodCalls(document, lastExpression, declarations, cancellationToken));
+            var action = CodeAction.Create(
+                "Chain calls", 
+                c => ChainMethodCalls(document, lastExpression, declarations, c));
 
             return new[] { action };
         }
 
-        private async Task<Solution> ChainMethodCalls(Document document, ExpressionSyntax lastExpression, List<StatementSyntax> declarations, CancellationToken cancellationToken)
+        private async Task<Solution> ChainMethodCalls(
+            Document document, 
+            ExpressionSyntax lastExpression, List<StatementSyntax> declarations, 
+            CancellationToken cancellationToken)
         {
             var expressions = declarations
                 .Cast<LocalDeclarationStatementSyntax>()
-                .Select(d => (ExpressionSyntax)d.Declaration.Variables[0].Initializer.Value)
+                .Select(d => d.Declaration.Variables[0].Initializer.Value)
                 .ToList();
 
             expressions.Add(lastExpression);
@@ -160,11 +169,13 @@ namespace RefactoringTools
                             mergedExpression, 
                             memberAccess.Name);
 
-                        mergedExpression = SyntaxFactory.InvocationExpression(newMemberAccess, currentInvocation.ArgumentList);
+                        mergedExpression = SyntaxFactory.InvocationExpression(
+                            newMemberAccess, 
+                            currentInvocation.ArgumentList);
                     }
                     else // if (currentExpression.IsKind(SyntaxKind.ConditionalAccessExpression))
                     {
-                        var currentConditionalAccess = (ConditionalAccessExpressionSyntax)currentExpression;                        
+                        var currentConditionalAccess = (ConditionalAccessExpressionSyntax)currentExpression;
 
                         mergedExpression = SyntaxFactory.ConditionalAccessExpression(
                             mergedExpression, 
@@ -186,9 +197,13 @@ namespace RefactoringTools
                             mergedConditonalAccess.WhenNotNull,
                             memberAccess.Name);
 
-                        var newInvocation = SyntaxFactory.InvocationExpression(simpleMemberAccess, currentInvocation.ArgumentList);
+                        var newInvocation = SyntaxFactory.InvocationExpression(
+                            simpleMemberAccess, 
+                            currentInvocation.ArgumentList);
 
-                        mergedExpression = SyntaxFactory.ConditionalAccessExpression(mergedConditonalAccess.Expression, newInvocation);
+                        mergedExpression = SyntaxFactory.ConditionalAccessExpression(
+                            mergedConditonalAccess.Expression, 
+                            newInvocation);
                     }
                     else // if (currentExpression.IsKind(SyntaxKind.ConditionalAccessExpression))
                     {
@@ -283,7 +298,8 @@ namespace RefactoringTools
             });
         }
 
-        private static Tuple<SyntaxToken, IdentifierNameSyntax> GetDeclarationInfo(StatementSyntax statement, bool isInitializerMustBeCallOnVariable)
+        private static Tuple<SyntaxToken, IdentifierNameSyntax> GetDeclarationInfo(
+            StatementSyntax statement, bool isInitializerMustBeCallOnVariable)
         {
             if (!statement.IsKind(SyntaxKind.LocalDeclarationStatement))
                 return null;

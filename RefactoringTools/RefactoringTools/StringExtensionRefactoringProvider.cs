@@ -10,14 +10,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Rename;
 using Microsoft.CodeAnalysis.Text;
 
-namespace CodeRefactoring1
+namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(StringExtensionRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
+    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
     internal class StringExtensionRefactoringProvider : ICodeRefactoringProvider
     {
         public const string RefactoringId = "StringExtension.RefactoringId";
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan textSpan, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan textSpan, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -53,7 +54,9 @@ namespace CodeRefactoring1
                 return null;
             }
 
-            var action = CodeAction.Create("Replace with extension method", c => ReplaceWithExtensionMethod(document, invocation, c));
+            var action = CodeAction.Create(
+                "Replace with extension method", 
+                c => ReplaceWithExtensionMethod(document, invocation, c));
 
             return new[] { action };
         }
@@ -82,7 +85,8 @@ namespace CodeRefactoring1
             return true;
         }
 
-        private async Task<Solution> ReplaceWithExtensionMethod(Document document, InvocationExpressionSyntax invocation, CancellationToken cancellationToken)
+        private async Task<Solution> ReplaceWithExtensionMethod(
+            Document document, InvocationExpressionSyntax invocation, CancellationToken cancellationToken)
         {
             var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
@@ -114,7 +118,11 @@ namespace CodeRefactoring1
             }
 
 
-            var newMemberAccess = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, target, SyntaxFactory.IdentifierName("IsNullOrEmpty"));
+            var newMemberAccess = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression, 
+                target, 
+                SyntaxFactory.IdentifierName("IsNullOrEmpty"));
+
             var newInvocation = SyntaxFactory.InvocationExpression(newMemberAccess);
 
             syntaxRoot = syntaxRoot.ReplaceNode(invocation, newInvocation);
@@ -133,7 +141,7 @@ namespace CodeRefactoring1
             }
 
 
-            syntaxRoot = Microsoft.CodeAnalysis.Formatting.Formatter.Format(syntaxRoot, Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create());
+            syntaxRoot = syntaxRoot.Format();;
 
             document = document.WithSyntaxRoot(syntaxRoot);
 

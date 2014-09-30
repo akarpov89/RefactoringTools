@@ -13,12 +13,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RefactoringTools
 {
-    [ExportCodeRefactoringProvider(TupleNewRefactoringProvider.RefactoringId, LanguageNames.CSharp)]
+    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp)]
     internal class TupleNewRefactoringProvider : ICodeRefactoringProvider 
     {
         public const string RefactoringId = "TupleNewRefactoringProvider";
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -32,7 +33,8 @@ namespace RefactoringTools
             }
             else
             {
-                invocationExpression = node.TryFindParentWithinStatement<InvocationExpressionSyntax>(SyntaxKind.InvocationExpression);
+                invocationExpression = 
+                    node.TryFindParentWithinStatement<InvocationExpressionSyntax>(SyntaxKind.InvocationExpression);
 
                 if (invocationExpression == null)
                     return null;
@@ -65,12 +67,17 @@ namespace RefactoringTools
             if (!typeSymbol.ToDisplayString().StartsWith("System.Tuple"))
                 return null;
 
-            var action = CodeAction.Create("Use new", c => UseNew(document, invocationExpression, typeSymbol, cancellationToken));
+            var action = CodeAction.Create(
+                "Use new", 
+                c => UseNew(document, invocationExpression, typeSymbol, c));
 
             return new[] { action };
         }
 
-        private async Task<Solution> UseNew(Document document, InvocationExpressionSyntax invocationExpression, INamedTypeSymbol typeSymbol, CancellationToken cancellationToken)
+        private async Task<Solution> UseNew(
+            Document document, 
+            InvocationExpressionSyntax invocationExpression, INamedTypeSymbol typeSymbol, 
+            CancellationToken cancellationToken)
         {
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
@@ -78,13 +85,18 @@ namespace RefactoringTools
 
             var typeSyntax = SyntaxFactory.ParseTypeName(typeName);
 
-            var objectCreationExpression = SyntaxFactory.ObjectCreationExpression(typeSyntax, invocationExpression.ArgumentList, null);
+            var objectCreationExpression = SyntaxFactory.ObjectCreationExpression(
+                typeSyntax, 
+                invocationExpression.ArgumentList, 
+                null);
 
             objectCreationExpression = objectCreationExpression.Format();
 
             var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
-            syntaxRoot = syntaxRoot.ReplaceNode<SyntaxNode, SyntaxNode>(invocationExpression, objectCreationExpression);
+            syntaxRoot = syntaxRoot.ReplaceNode<SyntaxNode, SyntaxNode>(
+                invocationExpression, 
+                objectCreationExpression);
 
             return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
         }

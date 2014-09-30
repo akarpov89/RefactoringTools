@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,9 +14,8 @@ namespace RefactoringTools
 {
     public static class SyntaxNodeExtensions
     {
-        private static readonly Lazy<MSBuildWorkspace> LazyDefaultWorkspace = new Lazy<MSBuildWorkspace>(() => MSBuildWorkspace.Create());
-
-        public static TSyntaxNode TryFindParentWithinStatement<TSyntaxNode>(this SyntaxNode node, SyntaxKind kind, Func<TSyntaxNode, bool> predicate = null)
+        public static TSyntaxNode TryFindParentWithinStatement<TSyntaxNode>(
+            this SyntaxNode node, SyntaxKind kind, Func<TSyntaxNode, bool> predicate = null)
             where TSyntaxNode : SyntaxNode
         {
             do
@@ -44,7 +44,8 @@ namespace RefactoringTools
             } while (true);            
         }
 
-        public static TSyntaxNode TryFindOuterMostParentWithinStatement<TSyntaxNode>(this SyntaxNode node, SyntaxKind kind, Func<TSyntaxNode, bool> predicate = null)
+        public static TSyntaxNode TryFindOuterMostParentWithinStatement<TSyntaxNode>(
+            this SyntaxNode node, SyntaxKind kind, Func<TSyntaxNode, bool> predicate = null)
             where TSyntaxNode : SyntaxNode
         {
             TSyntaxNode lastMatched = null;
@@ -138,12 +139,19 @@ namespace RefactoringTools
 
         private static bool IsMethodOrClassOrNamespace(this SyntaxNode node)
         {
-            return node.IsKind(SyntaxKind.MethodDeclaration) || node.IsKind(SyntaxKind.ClassDeclaration) || node.IsKind(SyntaxKind.NamespaceDeclaration);
+            return node.IsKind(SyntaxKind.MethodDeclaration) || 
+                   node.IsKind(SyntaxKind.ClassDeclaration) || 
+                   node.IsKind(SyntaxKind.NamespaceDeclaration);
         }
 
         public static T Format<T>(this T node) where T : SyntaxNode
         {
             return node.WithAdditionalAnnotations(Formatter.Annotation);
+        }
+
+        public static bool IsWithin(this SyntaxNode node, TextSpan span)
+        {
+            return node.SpanStart >= span.Start && node.SpanStart <= span.End;
         }
     }
 }

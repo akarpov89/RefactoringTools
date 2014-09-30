@@ -17,33 +17,9 @@ namespace RefactoringTools
     internal class UnchainConditionalMethodCallsRefactoringProvider : ICodeRefactoringProvider 
     {
         public const string RefactoringId = "UnchainConditionalMethodCallsRefactoringProvider";
-
-        private static bool IsEndsWithInvocation(ExpressionSyntax node)
-        {
-            if (node.IsKind(SyntaxKind.InvocationExpression))
-                return true;
-
-            if (!node.IsKind(SyntaxKind.ConditionalAccessExpression))
-                return false;
-
-            var conditionalAccess = (ConditionalAccessExpressionSyntax)node;
-
-            do
-            {
-                var whenNotNull = conditionalAccess.WhenNotNull;
-
-                if (whenNotNull.IsKind(SyntaxKind.InvocationExpression))
-                    return true;
-
-                if (!whenNotNull.IsKind(SyntaxKind.ConditionalAccessExpression))
-                    return false;
-
-                conditionalAccess = (ConditionalAccessExpressionSyntax)whenNotNull;
-
-            } while (true);
-        }
-
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -128,10 +104,37 @@ namespace RefactoringTools
             
             var declarations = new List<LocalDeclarationStatementSyntax>();
 
-            var action = CodeAction.Create("Unchain calls", c => UnchainMultipleMethodCalls(document, outer, cancellationToken));
+            var action = CodeAction.Create(
+                "Unchain calls", 
+                c => UnchainMultipleMethodCalls(document, outer, c));
 
             return new[] { action };
-        }                
+        }
+
+        private static bool IsEndsWithInvocation(ExpressionSyntax node)
+        {
+            if (node.IsKind(SyntaxKind.InvocationExpression))
+                return true;
+
+            if (!node.IsKind(SyntaxKind.ConditionalAccessExpression))
+                return false;
+
+            var conditionalAccess = (ConditionalAccessExpressionSyntax)node;
+
+            do
+            {
+                var whenNotNull = conditionalAccess.WhenNotNull;
+
+                if (whenNotNull.IsKind(SyntaxKind.InvocationExpression))
+                    return true;
+
+                if (!whenNotNull.IsKind(SyntaxKind.ConditionalAccessExpression))
+                    return false;
+
+                conditionalAccess = (ConditionalAccessExpressionSyntax)whenNotNull;
+
+            } while (true);
+        }
 
         private static IdentifierNameSyntax AddDeclaration(ExpressionSyntax value, List<LocalDeclarationStatementSyntax> declarations)
         {
@@ -197,14 +200,19 @@ namespace RefactoringTools
             var invocation = (InvocationExpressionSyntax)expression.WhenNotNull;
 
             if (!expression.Expression.IsKind(SyntaxKind.ConditionalAccessExpression) && 
-                !expression.Expression.IsKind(SyntaxKind.InvocationExpression) &&                
+                !expression.Expression.IsKind(SyntaxKind.InvocationExpression) &&
                 invocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
-                var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;                
+                var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
                 
-                var conditionalAccess = SyntaxFactory.ConditionalAccessExpression(expression.Expression, memberAccess.Expression);
+                var conditionalAccess = SyntaxFactory.ConditionalAccessExpression(
+                    expression.Expression, 
+                    memberAccess.Expression);
 
-                var newMemberAccess = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, conditionalAccess, memberAccess.Name);
+                var newMemberAccess = SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression, 
+                    conditionalAccess, 
+                    memberAccess.Name);
 
                 return SyntaxFactory.InvocationExpression(newMemberAccess, invocation.ArgumentList);
             }
@@ -238,7 +246,7 @@ namespace RefactoringTools
 
                 if (innerInvocation == null)
                 {
-                    AddDeclaration(conditionalAccess.Expression, declarations);                    
+                    AddDeclaration(conditionalAccess.Expression, declarations);
                 }
                 else
                 {
@@ -268,7 +276,12 @@ namespace RefactoringTools
                         var identifier = AddDeclaration(newInner, declarations);
 
                         var outerMemberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
-                        var memberAccess = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, identifier, outerMemberAccess.Name);
+
+                        var memberAccess = SyntaxFactory.MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression, 
+                            identifier, 
+                            outerMemberAccess.Name);
+
                         var newOuterInvocation = SyntaxFactory.InvocationExpression(memberAccess, invocation.ArgumentList);
 
                         return newOuterInvocation;
@@ -288,7 +301,8 @@ namespace RefactoringTools
             }
         }
 
-        private async Task<Solution> UnchainMultipleMethodCalls(Document document, ExpressionSyntax outer, CancellationToken cancellationToken)
+        private async Task<Solution> UnchainMultipleMethodCalls(
+            Document document, ExpressionSyntax outer, CancellationToken cancellationToken)
         {
             var declarations = new List<LocalDeclarationStatementSyntax>();
 
@@ -323,7 +337,6 @@ namespace RefactoringTools
                     return null;
                 }
             });
-
 
             syntaxRoot = syntaxRoot.Format();
 

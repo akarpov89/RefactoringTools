@@ -18,7 +18,8 @@ namespace RefactoringTools
     {
         public const string RefactoringId = "TupleCreateRefactoringProvider";
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
@@ -32,7 +33,8 @@ namespace RefactoringTools
             }
             else
             {
-                objectCreationSyntax = node.TryFindParentWithinStatement<ObjectCreationExpressionSyntax>(SyntaxKind.ObjectCreationExpression);
+                objectCreationSyntax = 
+                    node.TryFindParentWithinStatement<ObjectCreationExpressionSyntax>(SyntaxKind.ObjectCreationExpression);
 
                 if (objectCreationSyntax == null)
                     return null;
@@ -51,7 +53,10 @@ namespace RefactoringTools
             if (!typeSymbol.ToDisplayString().StartsWith("System.Tuple"))
                 return null;
 
-            var argumentsExpressions = objectCreationSyntax.ArgumentList.Arguments.Select(argument => argument.Expression).ToArray();
+            var argumentsExpressions = 
+                objectCreationSyntax.ArgumentList.Arguments
+                .Select(argument => argument.Expression)
+                .ToArray();
 
             if (argumentsExpressions.Any(e => e.IsKind(SyntaxKind.NullLiteralExpression)))
                 return null;
@@ -64,16 +69,26 @@ namespace RefactoringTools
                     return null;
             }
 
-            var action = CodeAction.Create("Use Tuple.Create", c => UseTupleCreate(document, objectCreationSyntax, cancellationToken));
+            var action = CodeAction.Create(
+                "Use Tuple.Create", 
+                c => UseTupleCreate(document, objectCreationSyntax, c));
 
             return new[] { action };
         }
 
-        private async Task<Solution> UseTupleCreate(Document document, ObjectCreationExpressionSyntax objectCreationExpression, CancellationToken cancellationToken)
+        private async Task<Solution> UseTupleCreate(
+            Document document, 
+            ObjectCreationExpressionSyntax objectCreationExpression, 
+            CancellationToken cancellationToken)
         {
-            var createMethodExpression = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, SyntaxFactory.IdentifierName("Tuple"), SyntaxFactory.IdentifierName("Create"));
+            var createMethodExpression = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression, 
+                SyntaxFactory.IdentifierName("Tuple"), 
+                SyntaxFactory.IdentifierName("Create"));
 
-            var createExpression = SyntaxFactory.InvocationExpression(createMethodExpression, objectCreationExpression.ArgumentList);
+            var createExpression = SyntaxFactory.InvocationExpression(
+                createMethodExpression, 
+                objectCreationExpression.ArgumentList);
 
             var t = Tuple.Create(1, "str");
 
