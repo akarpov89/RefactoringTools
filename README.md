@@ -1,7 +1,7 @@
 RefactoringTools
 ================
 
-Visual Stuido "14" extension providing set of code refactorings
+Roslyn based code refactorings for Visual Studio "14"
 
 #### Unchain / Chain method calls
 
