@@ -136,15 +136,18 @@ namespace RefactoringTools
             } while (true);
         }
 
-        private static IdentifierNameSyntax AddDeclaration(ExpressionSyntax value, List<LocalDeclarationStatementSyntax> declarations)
+        private static IdentifierNameSyntax AddDeclaration(
+            ExpressionSyntax value, List<LocalDeclarationStatementSyntax> declarations)
         {
             var equalsValue = SyntaxFactory.EqualsValueClause(value);
 
             var newVariableName = "newVar" + declarations.Count.ToString();
 
             var declarator = SyntaxFactory.VariableDeclarator(newVariableName).WithInitializer(equalsValue);
-            //declarator = declarator.ReplaceToken(declarator.Identifier, declarator.Identifier.WithAdditionalAnnotations(MyRenameAnnotation));
-
+//          declarator = declarator.ReplaceToken(
+//              declarator.Identifier, 
+//              declarator.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create());
+            
             var typeSyntax = SyntaxFactory.IdentifierName("var");
 
             var variableDeclaration = SyntaxFactory.VariableDeclaration(
