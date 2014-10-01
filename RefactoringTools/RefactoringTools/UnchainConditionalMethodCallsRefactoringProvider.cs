@@ -146,7 +146,11 @@ namespace RefactoringTools
             //declarator = declarator.ReplaceToken(declarator.Identifier, declarator.Identifier.WithAdditionalAnnotations(MyRenameAnnotation));
 
             var typeSyntax = SyntaxFactory.IdentifierName("var");
-            var variableDeclaration = SyntaxFactory.VariableDeclaration(typeSyntax, new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(declarator));
+
+            var variableDeclaration = SyntaxFactory.VariableDeclaration(
+                typeSyntax, 
+                new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(declarator));
+
             var declarationStatement = SyntaxFactory.LocalDeclarationStatement(variableDeclaration);
 
             declarations.Add(declarationStatement);
