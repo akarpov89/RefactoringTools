@@ -6,7 +6,9 @@ Friend Class CodeRefactoringProvider
 
     Public Const RefactoringId As String = "RefactoringTools.VB"
 
-    Public Async Function GetRefactoringsAsync(document As Document, textSpan As TextSpan, cancellationToken As CancellationToken) As Task(Of IEnumerable(Of CodeAction)) Implements ICodeRefactoringProvider.GetRefactoringsAsync
+    Public Async Function GetRefactoringsAsync(document As Document, textSpan As TextSpan, cancellationToken As CancellationToken) As Task(Of IEnumerable(Of CodeAction)) _
+        Implements ICodeRefactoringProvider.GetRefactoringsAsync
+
         ' TODO: Replace the following code with your own analysis, generating a CodeAction for each refactoring to offer
 
         Dim root = Await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(False)

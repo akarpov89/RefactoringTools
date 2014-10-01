@@ -136,6 +136,8 @@
   <ItemGroup>
     <Compile Include="CodeRefactoringProvider.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
+    <Compile Include="SyntaxNodeExtensions.vb" />
+    <Compile Include="TupleCreateRefactoringProvider.vb" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
