@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Diagnostics.Contracts;
 
 namespace RefactoringTools
 {
@@ -18,15 +19,9 @@ namespace RefactoringTools
     {
         public const string RefactoringId = nameof(ForToForeachRefactoringProvider);
 
-        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(Document document, TextSpan span, CancellationToken cancellationToken)
+        public async Task<IEnumerable<CodeAction>> GetRefactoringsAsync(
+            Document document, TextSpan span, CancellationToken cancellationToken)
         {
-            var arr = new[] { 1, 2, 3 };
-
-            for (var i = 0; i < arr.Count(); i++)
-            {
-
-            }
-
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
             var node = root.FindNode(span);
@@ -45,9 +40,89 @@ namespace RefactoringTools
 
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-            bool isConvertiableToForeach = IsConvertibleToForeach(forStatement, semanticModel);
+            if (!IsConvertibleToForeach(forStatement, semanticModel))
+                return null;
 
-            return null;
+            //return null;
+
+            var action = CodeAction.Create(
+                "Convert to foreach loop",
+                c => ConvertToForeach(document, forStatement, c));
+
+            return new[] { action };
+        }
+
+        private async Task<Document> ConvertToForeach(Document document, ForStatementSyntax forStatement, CancellationToken c)
+        {
+            var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
+
+            ExpressionSyntax collectionExpression;
+            SimpleNameSyntax lengthMember;
+
+            TryExtractCollectionInfo(
+                (BinaryExpressionSyntax)forStatement.Condition, 
+                out collectionExpression, 
+                out lengthMember);
+
+            var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
+
+            ITypeSymbol elementType = null;
+
+            if (collectionType.TypeKind == TypeKind.ArrayType)
+            {
+                var arrayType = (IArrayTypeSymbol)collectionType;
+                elementType = arrayType.ElementType;
+            }
+            else
+            {
+                var enumerableType = collectionType.AllInterfaces
+                    .First(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                                 .StartsWith("global::System.Collections.Generic.IEnumerable")
+                             && i.IsGenericType);
+
+                elementType = enumerableType.TypeArguments[0];
+            }
+
+            string elementTypeName = elementType.ToMinimalDisplayString(semanticModel, forStatement.SpanStart);
+
+            ISymbol collectionSymbol;
+            string collectionPartName;
+
+            DataFlowAnalysisHelper.TryGetCollectionInfo(
+                collectionExpression, 
+                semanticModel, 
+                out collectionPartName, 
+                out collectionSymbol);
+
+            var iterationIdentifier = SyntaxFactory
+                .IdentifierName("iterVar")
+                .WithAdditionalAnnotations(RenameAnnotation.Create());
+
+            var rewriter = new ForToForeachLoopBodyRewriter(
+                iterationIdentifier, 
+                collectionPartName, 
+                collectionSymbol, 
+                semanticModel);
+
+            var newBody = (StatementSyntax) forStatement.Statement.Accept(rewriter);
+
+            var foreachStatement = SyntaxFactory.ForEachStatement(
+                SyntaxFactory.ParseTypeName(elementTypeName), 
+                iterationIdentifier.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create()), 
+                collectionExpression, 
+                newBody);
+
+            foreachStatement = foreachStatement
+                .WithLeadingTrivia(forStatement.GetLeadingTrivia())
+                .WithTrailingTrivia(forStatement.GetTrailingTrivia());
+
+            var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
+
+            syntaxRoot = syntaxRoot.ReplaceNode((SyntaxNode)forStatement, foreachStatement);
+
+            syntaxRoot = syntaxRoot.Format();
+
+            return document.WithSyntaxRoot(syntaxRoot);
         }
 
         private static bool IsConvertibleToForeach(ForStatementSyntax forStatement, SemanticModel semanticModel)
@@ -152,6 +227,54 @@ namespace RefactoringTools
             ExpressionSyntax collectionExpression;
             SimpleNameSyntax lengthMember;
 
+            if (!TryExtractCollectionInfo(lessThanCondition, out collectionExpression, out lengthMember))
+            {
+                return false;
+            }
+
+            //
+            // Collection member name must be "Length" or "Count"
+            //
+
+            var lengthMemberName = lengthMember.Identifier.Text;
+            if (lengthMemberName != "Length" && lengthMemberName != "Count")
+            {
+                return false;
+            }
+
+            var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
+
+            if (collectionType.TypeKind != TypeKind.ArrayType
+                && !collectionType.AllInterfaces.Any(i => 
+                        i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == 
+                        "global::System.Collections.IEnumerable"
+                   )
+            )
+            {
+                return false;
+            }
+
+            //
+            // Body of the loop mustn't modify collection elements and counter
+            //
+
+            bool isLoopBodyOnlyReadsCurrentItem = DataFlowAnalysisHelper.IsLoopBodyReadsOnlyCurrentItem(
+                forStatement.Statement, 
+                semanticModel, 
+                collectionExpression, 
+                counterIdentifier.Text);            
+
+            return isLoopBodyOnlyReadsCurrentItem;
+        }
+
+        private static bool TryExtractCollectionInfo(
+            BinaryExpressionSyntax lessThanCondition, 
+            out ExpressionSyntax collectionExpression, 
+            out SimpleNameSyntax lengthMember)
+        {
+            collectionExpression = null;
+            lengthMember = null;
+
             //
             // Right operand must be simple member access expression (like xxx.Length or xxx.Count)
             // OR invocation expression like xxx.Count()
@@ -159,7 +282,7 @@ namespace RefactoringTools
 
             if (lessThanCondition.Right.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
-                var memberAccess = (MemberAccessExpressionSyntax) lessThanCondition.Right;
+                var memberAccess = (MemberAccessExpressionSyntax)lessThanCondition.Right;
                 collectionExpression = memberAccess.Expression;
                 lengthMember = memberAccess.Name;
             }
@@ -180,45 +303,73 @@ namespace RefactoringTools
             else
             {
                 return false;
-            }
+            }            
 
-            //
-            // Collection member name must be "Length" or "Count"
-            //
+            return true;
+        }
+    }
 
-            var lengthMemberName = lengthMember.Identifier.Text;
-            if (lengthMemberName != "Length" && lengthMemberName != "Count")
+    internal class ForToForeachLoopBodyRewriter : CSharpSyntaxRewriter
+    {
+        private IdentifierNameSyntax iterationIdentifier;
+        string collectionPartName;
+        ISymbol collectionSymbol;
+        SemanticModel semanticModel;
+
+        public ForToForeachLoopBodyRewriter(
+            IdentifierNameSyntax iterationIdentifier,
+            string collectionPartName, 
+            ISymbol collectionSymbol, 
+            SemanticModel semanticModel)
+        {
+            this.iterationIdentifier = iterationIdentifier;
+            this.collectionPartName = collectionPartName;
+            this.collectionSymbol = collectionSymbol;
+            this.semanticModel = semanticModel;
+        }
+
+        public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node)
+        {
+            if (node.Expression.IsKind(SyntaxKind.IdentifierName))
             {
-                return false;
+                var identifierNode = (IdentifierNameSyntax)node.Expression;
+
+                if (identifierNode.Identifier.Text == collectionPartName)
+                {
+                    // 
+                    // If identifier name equals to collection part name 
+                    // we check whether are they the same symbols.
+                    //
+
+                    var nodeSymbol = semanticModel.GetSymbolInfo(identifierNode).Symbol;
+
+                    if (collectionSymbol == nodeSymbol)
+                    {
+                        return iterationIdentifier;
+                    }
+                }
             }
-
-            var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
-
-            if (collectionType.TypeKind != TypeKind.ArrayType
-                || !collectionType.AllInterfaces.Any(i => 
-                        i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == 
-                        "global::System.Collections.IEnumerable"
-                   )
-            )
+            else if (node.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
-                return false;
+                var memberAccessNode = (MemberAccessExpressionSyntax)node.Expression;
+
+                if (memberAccessNode.Name.Identifier.Text == collectionPartName)
+                {
+                    // 
+                    // If identifier name equals to collection part name 
+                    // we check whether are they the same symbols.
+                    //
+
+                    var nodeSymbol = semanticModel.GetSymbolInfo(memberAccessNode).Symbol;
+
+                    if (collectionSymbol == nodeSymbol)
+                    {
+                        return iterationIdentifier;
+                    }
+                }
             }
 
-            //
-            // Body of the loop mustn't modify collection elements and counter
-            //
-
-            // TODO Real Data Flow Analysis
-
-            //
-            // Traverse statements
-            // save reads (access to symbol)
-            // save writes.
-            // Writes: x = e, x++, ++x, +=, -=, *=, /*, call to external method where this param is modified.
-            //         Value type can be written through "ref" and "out" parameter call
-            //
-
-            return false;
+            return node;
         }
     }
 }

@@ -101,6 +101,7 @@
   <ItemGroup>
     <Compile Include="ChainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="ChangeTypingRefactoringProvider.cs" />
+    <Compile Include="DataFlowAnalysisHelper.cs" />
     <Compile Include="ForToForeachRefactoringProvider.cs" />
     <Compile Include="StringExtensionRefactoringProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
