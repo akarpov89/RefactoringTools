@@ -201,27 +201,38 @@ namespace RefactoringTools
             }
 
             //
-            // Element access cannot be used in modifying expressions. Check for that.
+            // Element access cannot be used in modifying expressions.
             //
 
-            //
-            // If element access parent is binary expression and left operand is our element access, 
-            // then check if operator modifies accessed element
-            //
+            var elementAccessParent = elementAccess.Parent;
+            var elementAccessParentKind = elementAccessParent.CSharpKind();
 
-            var binaryExpression = elementAccess.Parent as BinaryExpressionSyntax;
-            
-            if (binaryExpression != null)
+            if (elementAccessParentKind.IsModifyingUnaryExpression())
             {
-                if (binaryExpression.Left == elementAccess
-                    && IsModifyingOperatorKind(binaryExpression.OperatorToken.CSharpKind()))
+                return false;
+            }
+            else if (elementAccessParentKind.IsModifyingBinaryExpression())
+            {
+                //
+                // If element access parent is modifying binary expression,
+                // then Left branch mustn't be our element access
+                //
+
+                var binaryExpression = (BinaryExpressionSyntax)elementAccessParent;
+
+                if (binaryExpression.Left == elementAccess)
                 {
                     return false;
                 }
             }
-            else if (elementAccess.Parent.IsKind(SyntaxKind.Argument))
+            else if (elementAccessParentKind == SyntaxKind.Argument)
             {
-                var argument = (ArgumentSyntax)elementAccess.Parent;
+                //
+                // If accessed element is used as argument then 
+                // we check if parameter is ref or out.
+                //
+
+                var argument = (ArgumentSyntax)elementAccessParent;
 
                 if (argument != null 
                     && (argument.RefOrOutKeyword.IsKind(SyntaxKind.RefKeyword) 
@@ -234,7 +245,40 @@ namespace RefactoringTools
             return true;
         }
 
-        private static bool IsModifyingOperatorKind(SyntaxKind operatorKind)
+        public static bool IsModifyingUnaryExpression(this SyntaxKind expressionKind)
+        {
+            switch (expressionKind)
+            {
+                case SyntaxKind.PreDecrementExpression:
+                case SyntaxKind.PreIncrementExpression:
+                case SyntaxKind.PostDecrementExpression:
+                case SyntaxKind.PostIncrementExpression:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsModifyingBinaryExpression(this SyntaxKind expressionKind)
+        {
+            switch (expressionKind)
+            {
+                case SyntaxKind.SimpleAssignmentExpression:
+                case SyntaxKind.AndAssignmentExpression:
+                case SyntaxKind.MultiplyAssignmentExpression:
+                case SyntaxKind.OrAssignmentExpression:
+                case SyntaxKind.ExclusiveOrAssignmentExpression:
+                case SyntaxKind.SubtractAssignmentExpression:
+                case SyntaxKind.ModuloAssignmentExpression:
+                case SyntaxKind.AddAssignmentExpression:
+                case SyntaxKind.DivideAssignmentExpression:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsModifyingOperatorKind(this SyntaxKind operatorKind)
         {
             switch (operatorKind)
             {
