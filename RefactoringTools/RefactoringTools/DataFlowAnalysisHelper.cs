@@ -54,7 +54,11 @@ namespace RefactoringTools
             return true;
         }
 
-        public static bool IsLoopBodyReadsOnlyCurrentItem(StatementSyntax body, SemanticModel semanticModel, ExpressionSyntax collection, string counterName)
+        public static bool IsLoopBodyReadsOnlyCurrentItem(
+            StatementSyntax body, 
+            SemanticModel semanticModel, 
+            ExpressionSyntax collection, 
+            string counterName)
         {
             ISymbol collectionSymbol;
             string collectionPartName;
