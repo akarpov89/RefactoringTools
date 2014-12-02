@@ -43,8 +43,6 @@ namespace RefactoringTools
             if (!IsConvertibleToForeach(forStatement, semanticModel))
                 return null;
 
-            //return null;
-
             var action = CodeAction.Create(
                 "Convert to foreach loop",
                 c => ConvertToForeach(document, forStatement, c));

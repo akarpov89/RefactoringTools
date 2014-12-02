@@ -12,7 +12,11 @@ namespace RefactoringTools
 {
     internal static class DataFlowAnalysisHelper
     {
-        public static bool TryGetCollectionInfo(ExpressionSyntax collection, SemanticModel semanticModel, out string collectionPartName, out ISymbol collectionSymbol)
+        public static bool TryGetCollectionInfo(
+            ExpressionSyntax collection, 
+            SemanticModel semanticModel, 
+            out string collectionPartName, 
+            out ISymbol collectionSymbol)
         {
             collectionPartName = null;
             collectionSymbol = null;
