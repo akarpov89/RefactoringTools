@@ -299,5 +299,48 @@ namespace RefactoringTools
                     return false;
             }
         }
+
+        public static bool HasLengthAndGetIndexer(ITypeSymbol collectionType, out string lengthMemberName)
+        {
+            lengthMemberName = null;
+
+            if (collectionType.TypeKind == TypeKind.ArrayType)
+            {
+                lengthMemberName = "Length";
+                return true;
+            }
+
+            var members = collectionType.GetMembers();
+
+            bool hasCount = false;
+            bool hasIndexer = false;
+
+            foreach (var member in collectionType.GetMembers())
+            {
+                if (member.Kind == SymbolKind.Property && member.Name == "Count")
+                {
+                    hasCount = true;
+                    lengthMemberName = "Count";
+                }
+
+                if (member.Kind == SymbolKind.Method && member.Name == "get_Item")
+                {
+                    var getItemMethod = (IMethodSymbol)member;
+                    if (getItemMethod.Parameters.Length == 1
+                        && getItemMethod.Parameters[0].Type.SpecialType == SpecialType.System_Int32)
+                    {
+                        hasIndexer = true;
+                    }
+                }
+
+                if (hasCount && hasIndexer)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        
     }
 }

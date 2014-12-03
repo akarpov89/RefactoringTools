@@ -53,7 +53,8 @@ namespace RefactoringTools
             return new[] { action };
         }
 
-        private async Task<Document> ConvertToForeach(Document document, ForStatementSyntax forStatement, CancellationToken c)
+        private async Task<Document> ConvertToForeach(
+            Document document, ForStatementSyntax forStatement, CancellationToken c)
         {
             var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
 
