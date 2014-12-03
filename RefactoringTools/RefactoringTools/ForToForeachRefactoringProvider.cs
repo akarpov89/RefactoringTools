@@ -68,22 +68,7 @@ namespace RefactoringTools
 
             var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
 
-            ITypeSymbol elementType = null;
-
-            if (collectionType.TypeKind == TypeKind.ArrayType)
-            {
-                var arrayType = (IArrayTypeSymbol)collectionType;
-                elementType = arrayType.ElementType;
-            }
-            else
-            {
-                var enumerableType = collectionType.AllInterfaces
-                    .First(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                                 .StartsWith("global::System.Collections.Generic.IEnumerable")
-                             && i.IsGenericType);
-
-                elementType = enumerableType.TypeArguments[0];
-            }
+            ITypeSymbol elementType = SymbolHelper.GetCollectionElementTypeSymbol(collectionType);
 
             string elementTypeName = elementType.ToMinimalDisplayString(semanticModel, forStatement.SpanStart);
 
@@ -96,8 +81,14 @@ namespace RefactoringTools
                 out collectionPartName, 
                 out collectionSymbol);
 
+            var iterationVarName = NameHelper.GetIterationVariableName(
+                collectionPartName, 
+                elementType, 
+                forStatement.Statement.SpanStart, 
+                semanticModel);
+
             var iterationIdentifier = SyntaxFactory
-                .IdentifierName("iterVar")
+                .IdentifierName(iterationVarName)
                 .WithAdditionalAnnotations(RenameAnnotation.Create());
 
             var rewriter = new ForToForeachLoopBodyRewriter(
@@ -246,15 +237,20 @@ namespace RefactoringTools
 
             var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
 
-            if (collectionType.TypeKind != TypeKind.ArrayType
-                && !collectionType.AllInterfaces.Any(i => 
-                        i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == 
-                        "global::System.Collections.IEnumerable"
-                   )
-            )
+            if (!SymbolHelper.IsCollection(collectionType))
             {
                 return false;
             }
+
+            //if (collectionType.TypeKind != TypeKind.ArrayType
+            //    && !collectionType.AllInterfaces.Any(i => 
+            //            i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == 
+            //            "global::System.Collections.IEnumerable"
+            //       )
+            //)
+            //{
+            //    return false;
+            //}
 
             //
             // Body of the loop mustn't modify collection elements and counter

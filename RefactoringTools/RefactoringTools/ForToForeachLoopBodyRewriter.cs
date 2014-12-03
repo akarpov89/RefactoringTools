@@ -14,10 +14,10 @@ namespace RefactoringTools
 {
     internal class ForToForeachLoopBodyRewriter : CSharpSyntaxRewriter
     {
-        private IdentifierNameSyntax iterationIdentifier;
-        string collectionPartName;
-        ISymbol collectionSymbol;
-        SemanticModel semanticModel;
+        private readonly IdentifierNameSyntax iterationIdentifier;
+        private readonly string collectionPartName;
+        private readonly ISymbol collectionSymbol;
+        private readonly SemanticModel semanticModel;
 
         public ForToForeachLoopBodyRewriter(
             IdentifierNameSyntax iterationIdentifier,
