@@ -39,8 +39,6 @@ namespace RefactoringTools
             if (statement == null || statement.IsKind(SyntaxKind.Block))
                 return null;
 
-            //var yy = statement.DescendantNodes().Where(x => true).Where(y => true).Where(z => true);
-
             InvocationExpressionSyntax outerInvocation = null;
             MemberAccessExpressionSyntax innerMemberAccess = null;
             var whereArguments = new Stack<SimpleLambdaExpressionSyntax>();
