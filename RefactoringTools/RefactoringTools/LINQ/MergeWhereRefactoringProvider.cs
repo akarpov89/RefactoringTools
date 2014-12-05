@@ -42,9 +42,61 @@ namespace RefactoringTools
 
             InvocationExpressionSyntax outerInvocation = null;
             MemberAccessExpressionSyntax innerMemberAccess = null;
-            bool isFound = false;
+            var whereArguments = new Stack<SimpleLambdaExpressionSyntax>();
 
-            var whereArguments = new Stack<ArgumentSyntax>();
+            bool isFound = TryFindLinqWhereDoubleCall(
+                statement, 
+                whereArguments,
+                out outerInvocation, 
+                out innerMemberAccess);
+
+            if (!isFound)
+                return null;
+
+            var innerMostWhereAccess = FindInnerMostLinqWhereAccess(
+                innerMemberAccess, 
+                whereArguments);
+
+            var whereArgumentsList = whereArguments.ToList();
+
+            var outerMostInvocation = FindOuterMostLinqWhereInvocation(
+                outerInvocation, 
+                whereArgumentsList);
+
+            return null;
+        }
+
+        private void Merge(
+            InvocationExpressionSyntax outerMostInvocation, 
+            MemberAccessExpressionSyntax innerMostWhereAccess, 
+            List<SimpleLambdaExpressionSyntax> whereArguments,
+            SemanticModel semanticModel)
+        {
+            var parameterName = whereArguments[0].Parameter.Identifier.Text;
+            
+            for (int i = 1; i < whereArguments.Count; ++i)
+            {
+                var currentLambda = whereArguments[i];
+                var currentParameter = currentLambda.Parameter;
+
+                if (currentParameter.Identifier.Text != parameterName)
+                {
+                    var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
+                    // TODO rename rewriter
+                }
+            }
+        }
+
+        private bool TryFindLinqWhereDoubleCall(
+            StatementSyntax statement,
+            Stack<SimpleLambdaExpressionSyntax> whereArguments,
+            out InvocationExpressionSyntax outerInvocation, 
+            out MemberAccessExpressionSyntax innerMemberAccess)
+        {
+            outerInvocation = null;
+            innerMemberAccess = null;
+
+            bool isFound = false;            
 
             foreach (var x in statement.DescendantNodes())
             {
@@ -53,7 +105,7 @@ namespace RefactoringTools
                 {
                     continue;
                 }
-                
+
                 var outerMethodName = (IdentifierNameSyntax)x;
 
                 if (outerMethodName.Identifier.Text != "Where")
@@ -63,10 +115,15 @@ namespace RefactoringTools
 
                 if (!outerMemberAccess.Parent.IsKind(SyntaxKind.InvocationExpression))
                     continue;
-                
+
                 outerInvocation = (InvocationExpressionSyntax)outerMemberAccess.Parent;
 
                 if (outerInvocation.ArgumentList.Arguments.Count != 1)
+                    continue;
+
+                var outerArgument = outerInvocation.ArgumentList.Arguments[0].Expression;
+
+                if (!outerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
                     continue;
 
                 if (!outerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -80,6 +137,11 @@ namespace RefactoringTools
                 if (innerInvocation.ArgumentList.Arguments.Count != 1)
                     continue;
 
+                var innerArgument = innerInvocation.ArgumentList.Arguments[0].Expression;
+
+                if (!innerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+                    continue;
+
                 if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
                     continue;
 
@@ -90,16 +152,20 @@ namespace RefactoringTools
 
                 isFound = true;
 
-                whereArguments.Push(outerInvocation.ArgumentList.Arguments[0]);
-                whereArguments.Push(innerInvocation.ArgumentList.Arguments[0]);
+                whereArguments.Push((SimpleLambdaExpressionSyntax)outerArgument);
+                whereArguments.Push((SimpleLambdaExpressionSyntax)innerArgument);
 
                 break;
             }
 
-            if (!isFound)
-                return null;
+            return isFound;
+        }
 
-            var tempMemberAccess = innerMemberAccess;
+        private MemberAccessExpressionSyntax FindInnerMostLinqWhereAccess(
+            MemberAccessExpressionSyntax memberAccess,
+            Stack<SimpleLambdaExpressionSyntax> whereArguments)
+        {
+            var tempMemberAccess = memberAccess;
 
             while (true)
             {
@@ -109,6 +175,11 @@ namespace RefactoringTools
                 var innerInvocation = (InvocationExpressionSyntax)tempMemberAccess.Expression;
 
                 if (innerInvocation.ArgumentList.Arguments.Count != 1)
+                    break;
+
+                var innerArgument = innerInvocation.ArgumentList.Arguments[0].Expression;
+
+                if (!innerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
                     break;
 
                 if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -121,14 +192,17 @@ namespace RefactoringTools
 
                 tempMemberAccess = temp;
 
-                whereArguments.Push(innerInvocation.ArgumentList.Arguments[0]);
+                whereArguments.Push((SimpleLambdaExpressionSyntax)innerArgument);
             }
 
-            var innerMostWhereAccess = tempMemberAccess;
+            return tempMemberAccess;
+        }
 
-            var tempOuterInvocation = outerInvocation;
-
-            var whereArgumentsList = whereArguments.ToList();
+        private InvocationExpressionSyntax FindOuterMostLinqWhereInvocation(
+            InvocationExpressionSyntax invocation,
+            List<SimpleLambdaExpressionSyntax> whereArguments)
+        {
+            var tempOuterInvocation = invocation;
 
             while (true)
             {
@@ -148,22 +222,17 @@ namespace RefactoringTools
                 if (temp.ArgumentList.Arguments.Count != 1)
                     break;
 
-                whereArgumentsList.Add(temp.ArgumentList.Arguments[0]);
+                var tempArgument = temp.ArgumentList.Arguments[0].Expression;
+
+                if (!tempArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+                    break;
+
+                whereArguments.Add((SimpleLambdaExpressionSyntax)tempArgument);
 
                 tempOuterInvocation = temp;
             }
 
-            var outerMostInvocation = tempOuterInvocation;
-
-            return null;
-        }
-
-        private void Merge(
-            InvocationExpressionSyntax outerMostInvocation, 
-            MemberAccessExpressionSyntax innerMostWhereAccess, 
-            List<ArgumentSyntax> whereArguments)
-        {
-
+            return tempOuterInvocation;
         }
     }
 }
