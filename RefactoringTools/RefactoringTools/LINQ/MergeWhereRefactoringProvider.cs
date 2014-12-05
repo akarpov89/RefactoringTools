@@ -13,6 +13,7 @@ using Microsoft.CodeAnalysis.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Simplification;
 
 namespace RefactoringTools
 {
@@ -63,28 +64,123 @@ namespace RefactoringTools
                 outerInvocation, 
                 whereArgumentsList);
 
-            return null;
+            var action = CodeAction.Create(
+                "Merge Where filters",
+                c => MergeWhereFilters(
+                    document,
+                    outerMostInvocation,
+                    innerMostWhereAccess,
+                    whereArgumentsList,
+                    c)
+            );
+
+            return new[] { action };
         }
 
-        private void Merge(
+        private async Task<Document> MergeWhereFilters(
+            Document document, 
+            InvocationExpressionSyntax outerMostInvocation, 
+            MemberAccessExpressionSyntax innerMostWhereAccess, 
+            List<SimpleLambdaExpressionSyntax> whereArguments,
+            CancellationToken c)
+        {
+            var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
+
+            var newInvocation = Merge(
+                outerMostInvocation, 
+                innerMostWhereAccess, 
+                whereArguments, 
+                semanticModel);
+
+            newInvocation = newInvocation
+                .WithLeadingTrivia(outerMostInvocation.GetLeadingTrivia())
+                .WithTrailingTrivia(outerMostInvocation.GetTrailingTrivia())
+                .WithoutAnnotations(Simplifier.Annotation);
+
+            var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
+
+            syntaxRoot = syntaxRoot.ReplaceNode((SyntaxNode)outerMostInvocation, newInvocation);
+
+            syntaxRoot = syntaxRoot.Format();
+
+            return document.WithSyntaxRoot(syntaxRoot);
+        }
+
+        private InvocationExpressionSyntax Merge(
             InvocationExpressionSyntax outerMostInvocation, 
             MemberAccessExpressionSyntax innerMostWhereAccess, 
             List<SimpleLambdaExpressionSyntax> whereArguments,
             SemanticModel semanticModel)
         {
-            var parameterName = whereArguments[0].Parameter.Identifier.Text;
-            
+            var firstFilter = whereArguments[0];
+
+            var parameterName = firstFilter.Parameter.Identifier.Text;
+
+            ExpressionSyntax filterExpression = MakeExpressionFromLambdaBody(firstFilter.Body);
+
             for (int i = 1; i < whereArguments.Count; ++i)
             {
                 var currentLambda = whereArguments[i];
                 var currentParameter = currentLambda.Parameter;
+                var currentParameterName = currentParameter.Identifier.Text;
 
-                if (currentParameter.Identifier.Text != parameterName)
+                ExpressionSyntax andOperand;
+
+                if (currentParameterName != parameterName)
                 {
                     var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
-                    // TODO rename rewriter
+
+                    var renameRewriter = new RenameIdentifierRewriter(
+                        currentParameterName,
+                        parameterSymbol,
+                        semanticModel,
+                        parameterName);
+
+                    var newBody = (CSharpSyntaxNode)currentLambda.Body.Accept(renameRewriter);
+
+                    andOperand = MakeExpressionFromLambdaBody(newBody);
                 }
+                else
+                {
+                    andOperand = MakeExpressionFromLambdaBody(currentLambda.Body);
+                }
+
+                filterExpression = SyntaxFactory.BinaryExpression(
+                    SyntaxKind.LogicalAndExpression, 
+                    filterExpression, 
+                    andOperand);
             }
+
+            var newLambda = SyntaxFactory.SimpleLambdaExpression(
+                firstFilter.Parameter, 
+                filterExpression);
+
+            var newInvocation = SyntaxFactory.InvocationExpression(
+                innerMostWhereAccess,
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(newLambda)
+                    )
+                )
+            );
+
+            return newInvocation;
+        }
+
+        private ExpressionSyntax MakeExpressionFromLambdaBody(CSharpSyntaxNode body)
+        {
+            var expression = (ExpressionSyntax)body;
+
+            if (expression.IsKind(SyntaxKind.ParenthesizedExpression) 
+                || expression.IsKind(SyntaxKind.LogicalNotExpression)
+                || expression.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+                || expression.IsKind(SyntaxKind.TrueLiteralExpression)
+                || expression.IsKind(SyntaxKind.FalseLiteralExpression))
+            {
+                return expression;
+            }
+
+            return SyntaxFactory.ParenthesizedExpression(expression);
         }
 
         private bool TryFindLinqWhereDoubleCall(

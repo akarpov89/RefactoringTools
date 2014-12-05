@@ -100,6 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="LINQ\MergeWhereRefactoringProvider.cs" />
+    <Compile Include="Helpers\RenameIdentifierRewriter.cs" />
     <Compile Include="MethodCallsRefactorings\ChainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\ChangeTypingRefactoringProvider.cs" />
     <Compile Include="Helpers\DataFlowAnalysisHelper.cs" />
