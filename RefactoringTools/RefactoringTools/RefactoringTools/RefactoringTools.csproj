@@ -43,6 +43,7 @@
     <Compile Include="Helpers\SyntaxNodeExtensions.cs" />
     <Compile Include="LINQ\MergeSelectRefactoringProvider.cs" />
     <Compile Include="LINQ\MergeWhereRefactoringProvider.cs" />
+    <Compile Include="LINQ\SplitSelectRefactoringProvider.cs" />
     <Compile Include="LINQ\SplitWhereRefactoringProvider.cs" />
     <Compile Include="LoopRefactorings\ForeachToForLoopBodyRewriter.cs" />
     <Compile Include="LoopRefactorings\ForeachToForRefactoringProvider.cs" />

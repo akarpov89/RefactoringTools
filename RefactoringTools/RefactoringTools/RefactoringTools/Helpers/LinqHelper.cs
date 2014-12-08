@@ -11,8 +11,14 @@ namespace RefactoringTools
 {
     internal static class LinqHelper
     {
+        #region Constants
+
         public const string WhereMethodName = "Where";
         public const string SelectMethodName = "Select";
+
+        #endregion
+
+        #region TryFindMethodSequence
 
         public static bool TryFindMethodSequence(
             SyntaxNode containerNode,
@@ -231,5 +237,58 @@ namespace RefactoringTools
 
             return tempOuterInvocation;
         }
+
+        #endregion
+
+        #region TryFindMethod
+
+        public static bool TryFindLinqWhereInvocationWithConjuction(
+            StatementSyntax statement,
+            out InvocationExpressionSyntax invocation,
+            out SimpleLambdaExpressionSyntax filter)
+        {
+            invocation = null;
+            filter = null;
+            bool isFound = false;
+
+            foreach (var node in statement.DescendantNodes())
+            {
+                if (!node.IsKind(SyntaxKind.InvocationExpression))
+                    continue;
+
+                var currentInvocation = (InvocationExpressionSyntax)node;
+
+                if (!currentInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+                    continue;
+
+                var memberAccess = (MemberAccessExpressionSyntax)currentInvocation.Expression;
+
+                if (memberAccess.Name.Identifier.Text != "Where")
+                    continue;
+
+                if (currentInvocation.ArgumentList.Arguments.Count != 1)
+                    continue;
+
+                var argument = currentInvocation.ArgumentList.Arguments[0];
+
+                if (!argument.Expression.IsKind(SyntaxKind.SimpleLambdaExpression))
+                    continue;
+
+                var lambda = (SimpleLambdaExpressionSyntax)argument.Expression;
+
+                if (!lambda.Body.IsKind(SyntaxKind.LogicalAndExpression))
+                    continue;
+
+                invocation = currentInvocation;
+                filter = lambda;
+
+                isFound = true;
+                break;
+            }
+
+            return isFound;
+        }
+
+        #endregion
     }
 }
