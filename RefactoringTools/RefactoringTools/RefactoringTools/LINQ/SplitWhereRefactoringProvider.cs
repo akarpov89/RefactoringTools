@@ -45,8 +45,15 @@ namespace RefactoringTools
             InvocationExpressionSyntax whereInvocation;
             SimpleLambdaExpressionSyntax filter;
 
-            if (!TryFindLinqWhereInvocationWithConjuction(statement, out whereInvocation, out filter))
+            if (!LinqHelper.TryFindMethodInvocation(
+                statement, 
+                LinqHelper.WhereMethodName, 
+                lambda => lambda.Body.IsKind(SyntaxKind.LogicalAndExpression), 
+                out whereInvocation, 
+                out filter))
+            {
                 return;
+            }
 
             var action = CodeAction.Create(
                 "Split Where filter",
@@ -71,53 +78,6 @@ namespace RefactoringTools
             syntaxRoot = syntaxRoot.Format();
 
             return document.WithSyntaxRoot(syntaxRoot);
-        }
-
-        private bool TryFindLinqWhereInvocationWithConjuction(
-            StatementSyntax statement, 
-            out InvocationExpressionSyntax invocation,
-            out SimpleLambdaExpressionSyntax filter)
-        {
-            invocation = null;
-            filter = null;
-            bool isFound = false;
-
-            foreach (var node in statement.DescendantNodes())
-            {
-                if (!node.IsKind(SyntaxKind.InvocationExpression))
-                    continue;
-
-                var currentInvocation = (InvocationExpressionSyntax)node;
-
-                if (!currentInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
-                    continue;
-
-                var memberAccess = (MemberAccessExpressionSyntax)currentInvocation.Expression;
-
-                if (memberAccess.Name.Identifier.Text != "Where")
-                    continue;
-
-                if (currentInvocation.ArgumentList.Arguments.Count != 1)
-                    continue;
-
-                var argument = currentInvocation.ArgumentList.Arguments[0];
-
-                if (!argument.Expression.IsKind(SyntaxKind.SimpleLambdaExpression))
-                    continue;
-
-                var lambda = (SimpleLambdaExpressionSyntax)argument.Expression;
-
-                if (!lambda.Body.IsKind(SyntaxKind.LogicalAndExpression))
-                    continue;
-
-                invocation = currentInvocation;
-                filter = lambda;
-
-                isFound = true;
-                break;
-            }
-
-            return isFound;
         }
 
         private InvocationExpressionSyntax SplitLinqWhereInvocation(

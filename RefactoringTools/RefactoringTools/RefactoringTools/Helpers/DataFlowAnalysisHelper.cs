@@ -341,6 +341,31 @@ namespace RefactoringTools
 
             return false;
         }
+
+        public static bool IsIdentifierReferencedIn(
+            string identifierName, 
+            ISymbol identifierSymbol, 
+            SemanticModel semanticModel,
+            SyntaxNode searchArea)
+        {
+            foreach (var node in searchArea.DescendantNodes())
+            {
+                if (!node.IsKind(SyntaxKind.IdentifierName))
+                    continue;
+
+                var currentIdentifier = (IdentifierNameSyntax)node;
+
+                if (currentIdentifier.Identifier.Text != identifierName)
+                    continue;
+
+                var currentIdentifierSymbol = semanticModel.GetSymbolInfo(currentIdentifier).Symbol;
+
+                if (currentIdentifierSymbol == identifierSymbol)
+                    return true;
+            }
+
+            return false;
+        }
         
     }
 }

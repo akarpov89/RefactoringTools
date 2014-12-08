@@ -242,16 +242,18 @@ namespace RefactoringTools
 
         #region TryFindMethod
 
-        public static bool TryFindLinqWhereInvocationWithConjuction(
-            StatementSyntax statement,
+        public static bool TryFindMethodInvocation(
+            SyntaxNode containerNode,
+            string methodName,
+            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
             out InvocationExpressionSyntax invocation,
-            out SimpleLambdaExpressionSyntax filter)
+            out SimpleLambdaExpressionSyntax methodArgument)
         {
             invocation = null;
-            filter = null;
+            methodArgument = null;
             bool isFound = false;
 
-            foreach (var node in statement.DescendantNodes())
+            foreach (var node in containerNode.DescendantNodes())
             {
                 if (!node.IsKind(SyntaxKind.InvocationExpression))
                     continue;
@@ -263,7 +265,7 @@ namespace RefactoringTools
 
                 var memberAccess = (MemberAccessExpressionSyntax)currentInvocation.Expression;
 
-                if (memberAccess.Name.Identifier.Text != "Where")
+                if (memberAccess.Name.Identifier.Text != methodName)
                     continue;
 
                 if (currentInvocation.ArgumentList.Arguments.Count != 1)
@@ -276,11 +278,11 @@ namespace RefactoringTools
 
                 var lambda = (SimpleLambdaExpressionSyntax)argument.Expression;
 
-                if (!lambda.Body.IsKind(SyntaxKind.LogicalAndExpression))
+                if (!lambdaPredicate(lambda))
                     continue;
 
                 invocation = currentInvocation;
-                filter = lambda;
+                methodArgument = lambda;
 
                 isFound = true;
                 break;
