@@ -12,12 +12,15 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Rewrites element access expression with iteration identifier.
+    /// </summary>
     internal class ForToForeachLoopBodyRewriter : CSharpSyntaxRewriter
     {
-        private readonly IdentifierNameSyntax iterationIdentifier;
-        private readonly string collectionPartName;
-        private readonly ISymbol collectionSymbol;
-        private readonly SemanticModel semanticModel;
+        private readonly IdentifierNameSyntax _iterationIdentifier;
+        private readonly string _collectionPartName;
+        private readonly ISymbol _collectionSymbol;
+        private readonly SemanticModel _semanticModel;
 
         public ForToForeachLoopBodyRewriter(
             IdentifierNameSyntax iterationIdentifier,
@@ -25,10 +28,10 @@ namespace RefactoringTools
             ISymbol collectionSymbol,
             SemanticModel semanticModel)
         {
-            this.iterationIdentifier = iterationIdentifier;
-            this.collectionPartName = collectionPartName;
-            this.collectionSymbol = collectionSymbol;
-            this.semanticModel = semanticModel;
+            _iterationIdentifier = iterationIdentifier;
+            _collectionPartName = collectionPartName;
+            _collectionSymbol = collectionSymbol;
+            _semanticModel = semanticModel;
         }
 
         public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node)
@@ -37,18 +40,18 @@ namespace RefactoringTools
             {
                 var identifierNode = (IdentifierNameSyntax)node.Expression;
 
-                if (identifierNode.Identifier.Text == collectionPartName)
+                if (identifierNode.Identifier.Text == _collectionPartName)
                 {
                     // 
                     // If identifier name equals to collection part name 
                     // we check whether are they the same symbols.
                     //
 
-                    var nodeSymbol = semanticModel.GetSymbolInfo(identifierNode).Symbol;
+                    var nodeSymbol = _semanticModel.GetSymbolInfo(identifierNode).Symbol;
 
-                    if (collectionSymbol == nodeSymbol)
+                    if (_collectionSymbol == nodeSymbol)
                     {
-                        return iterationIdentifier;
+                        return _iterationIdentifier;
                     }
                 }
             }
@@ -56,18 +59,18 @@ namespace RefactoringTools
             {
                 var memberAccessNode = (MemberAccessExpressionSyntax)node.Expression;
 
-                if (memberAccessNode.Name.Identifier.Text == collectionPartName)
+                if (memberAccessNode.Name.Identifier.Text == _collectionPartName)
                 {
                     // 
                     // If identifier name equals to collection part name 
                     // we check whether are they the same symbols.
                     //
 
-                    var nodeSymbol = semanticModel.GetSymbolInfo(memberAccessNode).Symbol;
+                    var nodeSymbol = _semanticModel.GetSymbolInfo(memberAccessNode).Symbol;
 
-                    if (collectionSymbol == nodeSymbol)
+                    if (_collectionSymbol == nodeSymbol)
                     {
-                        return iterationIdentifier;
+                        return _iterationIdentifier;
                     }
                 }
             }

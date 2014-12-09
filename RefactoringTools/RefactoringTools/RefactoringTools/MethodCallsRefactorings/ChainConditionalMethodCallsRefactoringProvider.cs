@@ -17,10 +17,14 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for chaining method invocations and removing
+    /// temporary variables.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class ChainConditionalMethodCallsRefactoringProvider : CodeRefactoringProvider 
     {
-        public const string RefactoringId = "ChainConditionalMethodCallsRefactoringProvider";
+        public const string RefactoringId = nameof(ChainConditionalMethodCallsRefactoringProvider);
 
         public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {

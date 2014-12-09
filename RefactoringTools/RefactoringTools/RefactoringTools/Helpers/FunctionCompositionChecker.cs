@@ -12,6 +12,10 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Performs check whether specified invocation is 
+    /// splittable function composition.
+    /// </summary>
     internal sealed class FunctionCompositionChecker
     {
         private readonly string _parameterName;

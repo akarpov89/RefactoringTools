@@ -17,6 +17,10 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for replacing Tuple.Create method invocation
+    /// with constructor invocation.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class TupleNewRefactoringProvider : CodeRefactoringProvider 
     {

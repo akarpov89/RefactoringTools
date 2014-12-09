@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Replaces invocation nodes with specified node.
+    /// </summary>
     internal class InvocationReplacer : CSharpSyntaxRewriter
     {
         private readonly Func<InvocationExpressionSyntax, bool> _isNeedToReplace;

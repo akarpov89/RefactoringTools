@@ -1,4 +1,7 @@
-﻿using Microsoft.CodeAnalysis;
+﻿// Copyright (c) Andrew Karpov. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
@@ -9,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Contains helper methods for work with LINQ methods invocations.
+    /// </summary>
     internal static class LinqHelper
     {
         #region Constants
@@ -292,5 +298,27 @@ namespace RefactoringTools
         }
 
         #endregion
+
+        public static InvocationExpressionSyntax MakeInvocationWithLambdaArgument(
+            ExpressionSyntax expression,
+            ParameterSyntax lambdaParameter,
+            ExpressionSyntax lambdaBody)
+        {
+            var newInvocation = SyntaxFactory.InvocationExpression(
+                expression,
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(
+                            SyntaxFactory.SimpleLambdaExpression(
+                                lambdaParameter,
+                                lambdaBody
+                            )
+                        )
+                    )
+                )
+            );
+
+            return newInvocation;
+        }
     }
 }

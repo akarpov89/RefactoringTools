@@ -18,6 +18,10 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for merging several LINQ Where invocations
+    /// into one Where with conjunction of predicates.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class MergeWhereRefactoringProvider : CodeRefactoringProvider
     {
@@ -87,8 +91,7 @@ namespace RefactoringTools
                 semanticModel);
 
             newInvocation = newInvocation
-                .WithLeadingTrivia(outerMostInvocation.GetLeadingTrivia())
-                .WithTrailingTrivia(outerMostInvocation.GetTrailingTrivia())
+                .WithTriviaFrom(outerMostInvocation)                
                 .WithoutAnnotations(Simplifier.Annotation);
 
             var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);

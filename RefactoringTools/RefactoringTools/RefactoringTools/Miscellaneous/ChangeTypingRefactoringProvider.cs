@@ -18,6 +18,9 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for converting implicit typing into explicit and vice verca.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class ChangeTypingRefactoringProvider : CodeRefactoringProvider
     {

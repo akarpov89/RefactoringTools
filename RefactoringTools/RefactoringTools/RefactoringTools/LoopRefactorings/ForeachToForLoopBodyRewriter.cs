@@ -12,12 +12,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Rewrites iteration identifier with element access expression.
+    /// </summary>
     internal class ForeachToForLoopBodyRewriter : CSharpSyntaxRewriter
     {
-        private readonly ElementAccessExpressionSyntax elementAccessExpression;
-        private readonly string iterationIdentifierName;
-        private readonly ISymbol iterationVariableSymbol;
-        private readonly SemanticModel semanticModel;
+        private readonly ElementAccessExpressionSyntax _elementAccessExpression;
+        private readonly string _iterationIdentifierName;
+        private readonly ISymbol _iterationVariableSymbol;
+        private readonly SemanticModel _semanticModel;
 
         public ForeachToForLoopBodyRewriter(
             ElementAccessExpressionSyntax elementAccessExpression,
@@ -25,21 +28,21 @@ namespace RefactoringTools
             ISymbol iterationVariableSymbol,
             SemanticModel semanticModel)
         {
-            this.elementAccessExpression = elementAccessExpression;
-            this.iterationIdentifierName = iterationIdentifierName;
-            this.iterationVariableSymbol = iterationVariableSymbol;
-            this.semanticModel = semanticModel;
+            _elementAccessExpression = elementAccessExpression;
+            _iterationIdentifierName = iterationIdentifierName;
+            _iterationVariableSymbol = iterationVariableSymbol;
+            _semanticModel = semanticModel;
         }
 
         public override SyntaxNode VisitIdentifierName(IdentifierNameSyntax node)
         {
-            if (node.Identifier.Text == iterationIdentifierName)
+            if (node.Identifier.Text == _iterationIdentifierName)
             {
-                var identifierSymbol = semanticModel.GetSymbolInfo(node).Symbol;
+                var identifierSymbol = _semanticModel.GetSymbolInfo(node).Symbol;
 
-                if (identifierSymbol == iterationVariableSymbol)
+                if (identifierSymbol == _iterationVariableSymbol)
                 {
-                    return this.elementAccessExpression;
+                    return _elementAccessExpression;
                 }
             }
 

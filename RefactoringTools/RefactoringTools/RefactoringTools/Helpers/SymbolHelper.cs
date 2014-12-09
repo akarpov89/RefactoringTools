@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Contains helper methods for work symbols.
+    /// </summary>
     internal static class SymbolHelper
     {
         public static ITypeSymbol GetCollectionElementTypeSymbol(ITypeSymbol collectionType)

@@ -11,6 +11,10 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Contains helper methods for generating names
+    /// in different contexts.
+    /// </summary>
     internal static class NameHelper
     {
         public static string GetIterationVariableName(

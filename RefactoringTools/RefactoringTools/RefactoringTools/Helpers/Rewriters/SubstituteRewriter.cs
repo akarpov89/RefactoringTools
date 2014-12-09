@@ -12,12 +12,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Substitutes identifier node with specified node.
+    /// </summary>
     internal sealed class SubstituteRewriter : CSharpSyntaxRewriter
     {
-        private readonly string identifierName;
-        private readonly ISymbol identifierSymbol;
-        private readonly SemanticModel semanticModel;
-        private readonly ExpressionSyntax replacement;
+        private readonly string _identifierName;
+        private readonly ISymbol _identifierSymbol;
+        private readonly SemanticModel _semanticModel;
+        private readonly ExpressionSyntax _replacement;
 
         public SubstituteRewriter(
             string identifierName,
@@ -25,21 +28,21 @@ namespace RefactoringTools
             SemanticModel semanticModel,
             ExpressionSyntax replacement)
         {
-            this.identifierName = identifierName;
-            this.identifierSymbol = identifierSymbol;
-            this.semanticModel = semanticModel;
-            this.replacement = replacement;
+            _identifierName = identifierName;
+            _identifierSymbol = identifierSymbol;
+            _semanticModel = semanticModel;
+            _replacement = replacement;
         }
 
         public override SyntaxNode VisitIdentifierName(IdentifierNameSyntax node)
         {
-            if (node.Identifier.Text == this.identifierName)
+            if (node.Identifier.Text == this._identifierName)
             {
-                var currentIdentifierSymbol = this.semanticModel.GetSymbolInfo(node).Symbol;
+                var currentIdentifierSymbol = this._semanticModel.GetSymbolInfo(node).Symbol;
 
-                if (currentIdentifierSymbol == this.identifierSymbol)
+                if (currentIdentifierSymbol == this._identifierSymbol)
                 {
-                    return replacement;
+                    return _replacement;
                 }
             }
 

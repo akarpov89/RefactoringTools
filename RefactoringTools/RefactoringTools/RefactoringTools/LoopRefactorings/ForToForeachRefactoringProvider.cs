@@ -18,6 +18,9 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provies refactoring for converting for-loop into foreach-loop.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class ForToForeachRefactoringProvider : CodeRefactoringProvider
     {
@@ -109,9 +112,7 @@ namespace RefactoringTools
                 collectionExpression, 
                 newBody);
 
-            foreachStatement = foreachStatement
-                .WithLeadingTrivia(forStatement.GetLeadingTrivia())
-                .WithTrailingTrivia(forStatement.GetTrailingTrivia());
+            foreachStatement = foreachStatement.WithTriviaFrom(forStatement);                
 
             var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
 

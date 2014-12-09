@@ -17,6 +17,10 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for splitting one LINQ Where invocation with conjunction
+    /// of predicates into several Where invocations.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class SplitWhereRefactoringProvider : CodeRefactoringProvider
     {
@@ -89,7 +93,7 @@ namespace RefactoringTools
 
             var factors = FactorizeExpression(filterExpression);
 
-            var newInvocation = MakeInvocationWithLambdaArgument(
+            var newInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
                 invocation.Expression,
                 filterParameter,
                 factors[0]);
@@ -99,41 +103,15 @@ namespace RefactoringTools
                 var memberAccess = SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
                     newInvocation,
-                    SyntaxFactory.IdentifierName("Where"));
+                    SyntaxFactory.IdentifierName(LinqHelper.WhereMethodName));
 
-                newInvocation = MakeInvocationWithLambdaArgument(
+                newInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
                     memberAccess,
                     filterParameter,
                     factors[i]);
             }
 
-            newInvocation = newInvocation
-                .WithLeadingTrivia(invocation.GetLeadingTrivia())
-                .WithTrailingTrivia(invocation.GetTrailingTrivia());
-
-            return newInvocation;
-        }
-
-        private InvocationExpressionSyntax MakeInvocationWithLambdaArgument(
-            ExpressionSyntax expression, 
-            ParameterSyntax lambdaParameter, 
-            ExpressionSyntax lambdaBody)
-        {
-            var newInvocation = SyntaxFactory.InvocationExpression(
-                expression,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(
-                            SyntaxFactory.SimpleLambdaExpression(
-                                lambdaParameter,
-                                lambdaBody
-                            )
-                        )
-                    )
-                )
-            );
-
-            return newInvocation;
+            return newInvocation.WithTriviaFrom(invocation);
         }
 
         private List<ExpressionSyntax> FactorizeExpression(ExpressionSyntax expression)

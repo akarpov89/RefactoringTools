@@ -17,6 +17,9 @@ using System;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for using extension method IsNullOrEmpty instead of String.IsNullOrEmpty.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class StringExtensionRefactoringProvider : CodeRefactoringProvider
     {

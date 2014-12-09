@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Contains helper methods for data flow analysis.
+    /// </summary>
     internal static class DataFlowAnalysisHelper
     {
         public static bool TryGetCollectionInfo(

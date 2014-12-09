@@ -17,10 +17,14 @@ using System.Composition;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for unchaining method invocations and introducing
+    /// temporary variables.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal class UnchainConditionalMethodCallsRefactoringProvider : CodeRefactoringProvider 
     {
-        public const string RefactoringId = "UnchainConditionalMethodCallsRefactoringProvider";
+        public const string RefactoringId = nameof(UnchainConditionalMethodCallsRefactoringProvider);
 
         public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {
@@ -314,7 +318,6 @@ namespace RefactoringTools
                     var lastDeclaration = declarations.Last();
                     var identifierToken = lastDeclaration.Declaration.Variables[0].Identifier;
                     var identifier = SyntaxFactory.IdentifierName(identifierToken);
-
 
                     var newConditionalAccess = SyntaxFactory.ConditionalAccessExpression(identifier, invocation);
 

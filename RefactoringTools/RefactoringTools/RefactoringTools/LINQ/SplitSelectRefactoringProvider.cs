@@ -16,6 +16,10 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
+    /// <summary>
+    /// Provides refactoring for splitting one LINQ Select invocation with function composition
+    /// into several Select invocations.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal sealed class SplitSelectRefactoringProvider : CodeRefactoringProvider
     {
@@ -118,7 +122,7 @@ namespace RefactoringTools
                     semanticModel, 
                     i);
 
-            var newSelectInvocation = MakeInvocationWithLambdaArgument(
+            var newSelectInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
                 selectInvocation.Expression,
                 lambdaParameter,
                 invocationStack[0]);
@@ -140,7 +144,7 @@ namespace RefactoringTools
                     newSelectInvocation,
                     SyntaxFactory.IdentifierName(LinqHelper.SelectMethodName));
 
-                newSelectInvocation = MakeInvocationWithLambdaArgument(
+                newSelectInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
                     memberAccess,
                     lambdaParameter,
                     processedInnerInvocation);
@@ -164,29 +168,7 @@ namespace RefactoringTools
             return SyntaxFactory.InvocationExpression(
                 invocation.Expression,
                 SyntaxFactory.ArgumentList(newArguments));
-        }
-
-        private static InvocationExpressionSyntax MakeInvocationWithLambdaArgument(
-            ExpressionSyntax expression,
-            ParameterSyntax lambdaParameter,
-            ExpressionSyntax lambdaBody)
-        {
-            var newInvocation = SyntaxFactory.InvocationExpression(
-                expression,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(
-                            SyntaxFactory.SimpleLambdaExpression(
-                                lambdaParameter,
-                                lambdaBody
-                            )
-                        )
-                    )
-                )
-            );
-
-            return newInvocation;
-        }
+        }        
 
         private static bool IsFunctionComposition(
             SimpleLambdaExpressionSyntax selectArgument, 

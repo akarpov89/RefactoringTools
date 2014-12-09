@@ -14,7 +14,10 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {
-    public static class SyntaxNodeExtensions
+    /// <summary>
+    /// Contains helper methods for work with syntax nodes.
+    /// </summary>
+    internal static class SyntaxNodeExtensions
     {
         public static TSyntaxNode TryFindParentWithinStatement<TSyntaxNode>(
             this SyntaxNode node, SyntaxKind kind, Func<TSyntaxNode, bool> predicate = null)

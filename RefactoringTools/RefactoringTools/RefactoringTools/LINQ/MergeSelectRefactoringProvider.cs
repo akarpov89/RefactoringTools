@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Andrew Karpov. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -18,6 +17,10 @@ using System.Threading.Tasks;
 
 namespace RefactoringTools
 {    
+    /// <summary>
+    /// Provides refactoring for merging several LINQ Select invocations into
+    /// on Select with function composition.
+    /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
     internal sealed class MergeSelectRefactoringProvider : CodeRefactoringProvider
     {
@@ -87,8 +90,7 @@ namespace RefactoringTools
                 semanticModel);
 
             newInvocation = newInvocation
-                .WithLeadingTrivia(outerMostInvocation.GetLeadingTrivia())
-                .WithTrailingTrivia(outerMostInvocation.GetTrailingTrivia())
+                .WithTriviaFrom(outerMostInvocation)                
                 .WithoutAnnotations(Simplifier.Annotation);
 
             var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
