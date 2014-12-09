@@ -35,10 +35,12 @@
   <ItemGroup>
     <Compile Include="Helpers\AsyncLazy.cs" />
     <Compile Include="Helpers\DataFlowAnalysisHelper.cs" />
+    <Compile Include="Helpers\FunctionCompositionChecker.cs" />
+    <Compile Include="Helpers\Rewriters\InvocationReplacer.cs" />
     <Compile Include="Helpers\LinqHelper.cs" />
     <Compile Include="Helpers\NameHelper.cs" />
-    <Compile Include="Helpers\RenameIdentifierRewriter.cs" />
-    <Compile Include="Helpers\SubstituteRewriter.cs" />
+    <Compile Include="Helpers\Rewriters\RenameIdentifierRewriter.cs" />
+    <Compile Include="Helpers\Rewriters\SubstituteRewriter.cs" />
     <Compile Include="Helpers\SymbolHelper.cs" />
     <Compile Include="Helpers\SyntaxNodeExtensions.cs" />
     <Compile Include="LINQ\MergeSelectRefactoringProvider.cs" />

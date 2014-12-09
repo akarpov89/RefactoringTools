@@ -155,5 +155,12 @@ namespace RefactoringTools
         {
             return node.SpanStart >= span.Start && node.SpanStart <= span.End;
         }
+
+        public static T WithTriviaFrom<T>(this T node, SyntaxNode from) where T : SyntaxNode
+        {
+            return node
+                .WithLeadingTrivia(from.GetLeadingTrivia())
+                .WithTrailingTrivia(from.GetTrailingTrivia());
+        }
     }
 }
