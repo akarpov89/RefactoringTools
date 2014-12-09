@@ -96,6 +96,14 @@ namespace RefactoringTools
                     if (!memberAccess.Expression.IsKind(SyntaxKind.InvocationExpression))
                         return false;
 
+                    var innerInvocation = (InvocationExpressionSyntax)memberAccess.Expression;
+
+                    if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression) &&
+                        !innerInvocation.Expression.IsKind(SyntaxKind.ConditionalAccessExpression))
+                    {
+                        return false;
+                    }
+
                     return true;
                 }
                 else
