@@ -75,7 +75,7 @@ namespace RefactoringTools
                     return;
 
                 var action = CodeAction.Create(
-                    "Use explicit typing",
+                    "Specify type explicitly",
                     c => UseExplicitTyping(document, variableDeclaration, variableType.Type, c));
 
                 context.RegisterRefactoring(action);

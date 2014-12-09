@@ -172,7 +172,9 @@ namespace RefactoringTools
                 || expression.IsKind(SyntaxKind.LogicalNotExpression)
                 || expression.IsKind(SyntaxKind.SimpleMemberAccessExpression)
                 || expression.IsKind(SyntaxKind.TrueLiteralExpression)
-                || expression.IsKind(SyntaxKind.FalseLiteralExpression))
+                || expression.IsKind(SyntaxKind.FalseLiteralExpression)
+                || expression.IsKind(SyntaxKind.IdentifierName)
+                || expression.IsKind(SyntaxKind.InvocationExpression))
             {
                 return expression;
             }
