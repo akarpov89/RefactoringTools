@@ -78,8 +78,6 @@ namespace RefactoringTools
             return true;
         }
 
-        
-
         private static bool TryGetLambdaFromArgument(
             ArgumentSyntax argument, 
             out SimpleLambdaExpressionSyntax lambda)
@@ -148,13 +146,6 @@ namespace RefactoringTools
 
                 var outerArgument = outerInvocation.ArgumentList.Arguments[0];
 
-                /*
-                if (!outerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
-                    continue;
-
-                var outerLambda = (SimpleLambdaExpressionSyntax)outerArgument;
-                */
-
                 SimpleLambdaExpressionSyntax outerLambda;
                 if (!TryGetLambdaFromArgument(outerArgument, out outerLambda))
                     continue;
@@ -175,12 +166,6 @@ namespace RefactoringTools
 
                 var innerArgument = innerInvocation.ArgumentList.Arguments[0];
 
-                /*
-                if (!innerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
-                    continue;
-
-                var innerLambda = (SimpleLambdaExpressionSyntax)innerArgument;
-                */
                 SimpleLambdaExpressionSyntax innerLambda;
                 if (!TryGetLambdaFromArgument(innerArgument, out innerLambda))
                     continue;
@@ -225,12 +210,11 @@ namespace RefactoringTools
                 if (innerInvocation.ArgumentList.Arguments.Count != 1)
                     break;
 
-                var innerArgument = innerInvocation.ArgumentList.Arguments[0].Expression;
+                var innerArgument = innerInvocation.ArgumentList.Arguments[0];
 
-                if (!innerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+                SimpleLambdaExpressionSyntax innerLambda;
+                if (!TryGetLambdaFromArgument(innerArgument, out innerLambda))
                     break;
-
-                var innerLambda = (SimpleLambdaExpressionSyntax)innerArgument;
 
                 if (lambdaPredicate != null && !lambdaPredicate(innerLambda))
                     break;
@@ -277,12 +261,11 @@ namespace RefactoringTools
                 if (temp.ArgumentList.Arguments.Count != 1)
                     break;
 
-                var tempArgument = temp.ArgumentList.Arguments[0].Expression;
+                var tempArgument = temp.ArgumentList.Arguments[0];
 
-                if (!tempArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+                SimpleLambdaExpressionSyntax tempLambda;
+                if (!TryGetLambdaFromArgument(tempArgument, out tempLambda))
                     break;
-
-                var tempLambda = (SimpleLambdaExpressionSyntax)tempArgument;
 
                 if (lambdaPredicate != null && !lambdaPredicate(tempLambda))
                     break;
