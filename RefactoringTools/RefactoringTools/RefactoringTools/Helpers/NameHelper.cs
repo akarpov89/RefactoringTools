@@ -74,6 +74,20 @@ namespace RefactoringTools
             return "COUNTER";
         }
 
+        public static string GetLambdaParameterName(int position, SemanticModel semanticModel)
+        {
+            if (IsUniqueName("x", position, semanticModel))
+                return "x";
+
+            if (IsUniqueName("arg", position, semanticModel))
+                return "arg";
+
+            if (IsUniqueName("item", position, semanticModel))
+                return "item";
+
+            return "ARG";
+        }
+
         private static bool IsUniqueName(string name, int position, SemanticModel semanticModel)
         {
             var expressionSymbolInfo = semanticModel.GetSpeculativeSymbolInfo(

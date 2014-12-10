@@ -111,15 +111,42 @@ namespace RefactoringTools
             var firstProjection = selectArguments[0];
 
             var parameterName = firstProjection.Parameter.Identifier.Text;
-
+            var firstProjectionParameter = firstProjection.Parameter;
             var resultInvocation = (InvocationExpressionSyntax)firstProjection.Body;
+
+            if (parameterName == LinqHelper.GeneratedLambdaParameterName)
+            {
+                parameterName = NameHelper.GetLambdaParameterName(
+                    outerMostInvocation.SpanStart, 
+                    semanticModel);
+
+                var parameterIdentifier = SyntaxFactory
+                    .Identifier(parameterName)
+                    .WithAdditionalAnnotations(RenameAnnotation.Create());
+
+                firstProjectionParameter = SyntaxFactory.Parameter(parameterIdentifier);
+
+                var newParameterIdentifier = SyntaxFactory.IdentifierName(parameterIdentifier);
+
+                var renamer = new SubstituteRewriter(
+                    LinqHelper.GeneratedLambdaParameterName, 
+                    null, 
+                    semanticModel, 
+                    newParameterIdentifier);
+
+                resultInvocation = (InvocationExpressionSyntax)resultInvocation.Accept(renamer);
+            }
 
             for (int i = 1; i < selectArguments.Count; ++i)
             {
                 var currentLambda = selectArguments[i];
                 var currentParameter = currentLambda.Parameter;
                 var currentParameterName = currentParameter.Identifier.Text;
-                var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
+
+                var parameterSymbol = 
+                    currentParameter.Identifier.Text == LinqHelper.GeneratedLambdaParameterName 
+                    ? null 
+                    : semanticModel.GetDeclaredSymbol(currentParameter);
 
                 var substituteRewriter = new SubstituteRewriter(
                     currentParameterName,
@@ -133,7 +160,7 @@ namespace RefactoringTools
             }
 
             var newLambda = SyntaxFactory.SimpleLambdaExpression(
-                firstProjection.Parameter,
+                firstProjectionParameter,
                 resultInvocation);
 
             var newInvocation = SyntaxFactory.InvocationExpression(

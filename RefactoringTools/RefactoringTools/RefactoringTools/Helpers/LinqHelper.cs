@@ -22,6 +22,14 @@ namespace RefactoringTools
         public const string WhereMethodName = "Where";
         public const string SelectMethodName = "Select";
 
+        internal const string GeneratedLambdaParameterName = "____generated____lambdaArgument____";
+
+        private static readonly ParameterSyntax GeneratedLambdaParameter =
+            SyntaxFactory.Parameter(SyntaxFactory.Identifier(GeneratedLambdaParameterName));
+
+        private static readonly IdentifierNameSyntax GeneratedIdentifierForLambda =
+            SyntaxFactory.IdentifierName(SyntaxFactory.Identifier(GeneratedLambdaParameterName));
+
         #endregion
 
         #region TryFindMethodSequence
@@ -70,6 +78,38 @@ namespace RefactoringTools
             return true;
         }
 
+        
+
+        private static bool TryGetLambdaFromArgument(
+            ArgumentSyntax argument, 
+            out SimpleLambdaExpressionSyntax lambda)
+        {
+            if (argument.Expression.IsKind(SyntaxKind.SimpleLambdaExpression))
+            {
+                lambda = (SimpleLambdaExpressionSyntax)argument.Expression;
+                return true;
+            }
+
+            if (argument.Expression.IsKind(SyntaxKind.IdentifierName)
+                || argument.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+            {
+                var invocation = SyntaxFactory.InvocationExpression(
+                    argument.Expression,
+                    SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(GeneratedIdentifierForLambda)
+                        )
+                    )
+                );
+
+                lambda = SyntaxFactory.SimpleLambdaExpression(GeneratedLambdaParameter, invocation);
+                return true;
+            }
+
+            lambda = null;
+            return false;
+        }
+
         private static bool TryFindDoubleCall(
             SyntaxNode containerNode,
             string methodName,
@@ -106,12 +146,18 @@ namespace RefactoringTools
                 if (outerInvocation.ArgumentList.Arguments.Count != 1)
                     continue;
 
-                var outerArgument = outerInvocation.ArgumentList.Arguments[0].Expression;
+                var outerArgument = outerInvocation.ArgumentList.Arguments[0];
 
+                /*
                 if (!outerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
                     continue;
 
                 var outerLambda = (SimpleLambdaExpressionSyntax)outerArgument;
+                */
+
+                SimpleLambdaExpressionSyntax outerLambda;
+                if (!TryGetLambdaFromArgument(outerArgument, out outerLambda))
+                    continue;
 
                 if (lambdaPredicate != null && !lambdaPredicate(outerLambda))
                     continue;
@@ -127,12 +173,17 @@ namespace RefactoringTools
                 if (innerInvocation.ArgumentList.Arguments.Count != 1)
                     continue;
 
-                var innerArgument = innerInvocation.ArgumentList.Arguments[0].Expression;
+                var innerArgument = innerInvocation.ArgumentList.Arguments[0];
 
+                /*
                 if (!innerArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
                     continue;
 
                 var innerLambda = (SimpleLambdaExpressionSyntax)innerArgument;
+                */
+                SimpleLambdaExpressionSyntax innerLambda;
+                if (!TryGetLambdaFromArgument(innerArgument, out innerLambda))
+                    continue;
 
                 if (lambdaPredicate != null && !lambdaPredicate(innerLambda))
                     continue;
@@ -304,16 +355,35 @@ namespace RefactoringTools
             ParameterSyntax lambdaParameter,
             ExpressionSyntax lambdaBody)
         {
+            ExpressionSyntax argument = null;
+
+            if (lambdaBody.IsKind(SyntaxKind.InvocationExpression))
+            {
+                var invocationBody = (InvocationExpressionSyntax)lambdaBody;
+
+                var arguments = invocationBody.ArgumentList.Arguments;
+
+                if (arguments.Count == 1 && arguments[0].Expression.IsKind(SyntaxKind.IdentifierName))
+                {
+                    var invocationArgument = (IdentifierNameSyntax)arguments[0].Expression;
+
+                    if (invocationArgument.Identifier.Text == lambdaParameter.Identifier.Text)
+                    {
+                        argument = invocationBody.Expression;
+                    }
+                }
+            }
+
+            if (argument == null)
+            {
+                argument = SyntaxFactory.SimpleLambdaExpression(lambdaParameter, lambdaBody);
+            }
+
             var newInvocation = SyntaxFactory.InvocationExpression(
                 expression,
                 SyntaxFactory.ArgumentList(
                     SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(
-                            SyntaxFactory.SimpleLambdaExpression(
-                                lambdaParameter,
-                                lambdaBody
-                            )
-                        )
+                        SyntaxFactory.Argument(argument)
                     )
                 )
             );

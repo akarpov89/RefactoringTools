@@ -36,11 +36,16 @@ namespace RefactoringTools
 
         public override SyntaxNode VisitIdentifierName(IdentifierNameSyntax node)
         {
-            if (node.Identifier.Text == this._identifierName)
+            if (node.Identifier.Text == _identifierName)
             {
-                var currentIdentifierSymbol = this._semanticModel.GetSymbolInfo(node).Symbol;
+                if (_identifierSymbol == null)
+                {
+                    return _replacement;
+                }
 
-                if (currentIdentifierSymbol == this._identifierSymbol)
+                var currentIdentifierSymbol = _semanticModel.GetSymbolInfo(node).Symbol;
+
+                if (currentIdentifierSymbol == _identifierSymbol)
                 {
                     return _replacement;
                 }

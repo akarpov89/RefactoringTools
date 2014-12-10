@@ -112,8 +112,34 @@ namespace RefactoringTools
             var firstFilter = whereArguments[0];
 
             var parameterName = firstFilter.Parameter.Identifier.Text;
+            var firstFilterParameter = firstFilter.Parameter;
+            var firstFilterBody = firstFilter.Body;
+            var parameterIdentifierName = SyntaxFactory.IdentifierName(firstFilterParameter.Identifier);
 
-            ExpressionSyntax filterExpression = MakeExpressionFromLambdaBody(firstFilter.Body);
+            if (parameterName == LinqHelper.GeneratedLambdaParameterName)
+            {
+                parameterName = NameHelper.GetLambdaParameterName(
+                    outerMostInvocation.SpanStart, 
+                    semanticModel);
+
+                var parameterIdentifier = SyntaxFactory
+                    .Identifier(parameterName)
+                    .WithAdditionalAnnotations(RenameAnnotation.Create());
+
+                firstFilterParameter = SyntaxFactory.Parameter(parameterIdentifier);
+
+                parameterIdentifierName = SyntaxFactory.IdentifierName(parameterIdentifier);
+
+                var renamer = new SubstituteRewriter(
+                    LinqHelper.GeneratedLambdaParameterName, 
+                    null, 
+                    semanticModel, 
+                    parameterIdentifierName);
+
+                firstFilterBody = (ExpressionSyntax)firstFilterBody.Accept(renamer);
+            }
+
+            ExpressionSyntax filterExpression = MakeExpressionFromLambdaBody(firstFilterBody);
 
             for (int i = 1; i < whereArguments.Count; ++i)
             {
@@ -125,15 +151,18 @@ namespace RefactoringTools
 
                 if (currentParameterName != parameterName)
                 {
-                    var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
+                    var parameterSymbol =
+                        currentParameter.Identifier.Text == LinqHelper.GeneratedLambdaParameterName
+                        ? null
+                        : semanticModel.GetDeclaredSymbol(currentParameter);
 
-                    var renameRewriter = new RenameIdentifierRewriter(
+                    var substituteRewriter = new SubstituteRewriter(
                         currentParameterName,
                         parameterSymbol,
                         semanticModel,
-                        parameterName);
+                        parameterIdentifierName);
 
-                    var newBody = (CSharpSyntaxNode)currentLambda.Body.Accept(renameRewriter);
+                    var newBody = (CSharpSyntaxNode)currentLambda.Body.Accept(substituteRewriter);
 
                     andOperand = MakeExpressionFromLambdaBody(newBody);
                 }
@@ -149,7 +178,7 @@ namespace RefactoringTools
             }
 
             var newLambda = SyntaxFactory.SimpleLambdaExpression(
-                firstFilter.Parameter, 
+                firstFilterParameter, 
                 filterExpression);
 
             var newInvocation = SyntaxFactory.InvocationExpression(
