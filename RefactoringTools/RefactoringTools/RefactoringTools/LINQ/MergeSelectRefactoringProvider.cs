@@ -26,6 +26,10 @@ namespace RefactoringTools
     {
         public const string RefactoringId = nameof(MergeSelectRefactoringProvider);
 
+        private static Func<ExpressionSyntax, bool> NotLambdaOrLambdaWithInvocation = e =>
+            !e.IsKind(SyntaxKind.SimpleLambdaExpression)
+            || ((SimpleLambdaExpressionSyntax)e).Body.IsKind(SyntaxKind.InvocationExpression);
+
         public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {
             var document = context.Document;
@@ -48,12 +52,12 @@ namespace RefactoringTools
 
             InvocationExpressionSyntax outerMostInvocation;
             MemberAccessExpressionSyntax innerMostWhereAccess;
-            List<SimpleLambdaExpressionSyntax> whereArgumentsList;
+            List<ExpressionSyntax> whereArgumentsList;
 
             bool isFound = LinqHelper.TryFindMethodSequence(
                 statement,
                 LinqHelper.SelectMethodName,
-                lambdaArgument => lambdaArgument.Body.IsKind(SyntaxKind.InvocationExpression),
+                NotLambdaOrLambdaWithInvocation,
                 out outerMostInvocation,
                 out innerMostWhereAccess,
                 out whereArgumentsList);
@@ -78,7 +82,7 @@ namespace RefactoringTools
             Document document,
             InvocationExpressionSyntax outerMostInvocation,
             MemberAccessExpressionSyntax innerMostSelectAccess,
-            List<SimpleLambdaExpressionSyntax> selectArguments,
+            List<ExpressionSyntax> selectArguments,
             CancellationToken c)
         {
             var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
@@ -90,7 +94,7 @@ namespace RefactoringTools
                 semanticModel);
 
             newInvocation = newInvocation
-                .WithTriviaFrom(outerMostInvocation)                
+                .WithTriviaFrom(outerMostInvocation)
                 .WithoutAnnotations(Simplifier.Annotation);
 
             var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
@@ -105,72 +109,78 @@ namespace RefactoringTools
         private static InvocationExpressionSyntax Merge(
             InvocationExpressionSyntax outerMostInvocation,
             MemberAccessExpressionSyntax innerMostWhereAccess,
-            List<SimpleLambdaExpressionSyntax> selectArguments,
+            List<ExpressionSyntax> selectArguments,
             SemanticModel semanticModel)
         {
-            var firstProjection = selectArguments[0];
+            var firstArgument = selectArguments[0];
 
-            var parameterName = firstProjection.Parameter.Identifier.Text;
-            var firstProjectionParameter = firstProjection.Parameter;
-            var resultInvocation = (InvocationExpressionSyntax)firstProjection.Body;
+            string parameterName;
+            ParameterSyntax firstParameter;
+            IdentifierNameSyntax firstParameterIdentifier;
+            InvocationExpressionSyntax resultInvocation;
 
-            if (parameterName == LinqHelper.GeneratedLambdaParameterName)
+            if (firstArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+            {
+                var lambda = (SimpleLambdaExpressionSyntax)firstArgument;
+                firstParameter = lambda.Parameter;
+                parameterName = firstParameter.Identifier.Text;
+                firstParameterIdentifier = SyntaxFactory.IdentifierName(firstParameter.Identifier);
+                resultInvocation = (InvocationExpressionSyntax)lambda.Body;
+            }
+            else
             {
                 parameterName = NameHelper.GetLambdaParameterName(
-                    outerMostInvocation.SpanStart, 
+                    outerMostInvocation.SpanStart,
                     semanticModel);
 
                 var parameterIdentifier = SyntaxFactory
                     .Identifier(parameterName)
                     .WithAdditionalAnnotations(RenameAnnotation.Create());
 
-                firstProjectionParameter = SyntaxFactory.Parameter(parameterIdentifier);
+                firstParameter = SyntaxFactory.Parameter(parameterIdentifier);
 
-                var newParameterIdentifier = SyntaxFactory.IdentifierName(parameterIdentifier);
+                firstParameterIdentifier = SyntaxFactory.IdentifierName(parameterIdentifier);
 
-                var renamer = new SubstituteRewriter(
-                    LinqHelper.GeneratedLambdaParameterName, 
-                    null, 
-                    semanticModel, 
-                    newParameterIdentifier);
-
-                resultInvocation = (InvocationExpressionSyntax)resultInvocation.Accept(renamer);
+                resultInvocation = ExtendedSyntaxFactory.MakeInvocation(
+                    firstArgument,
+                    firstParameterIdentifier);
             }
 
             for (int i = 1; i < selectArguments.Count; ++i)
             {
-                var currentLambda = selectArguments[i];
-                var currentParameter = currentLambda.Parameter;
-                var currentParameterName = currentParameter.Identifier.Text;
+                if (selectArguments[i].IsKind(SyntaxKind.SimpleLambdaExpression))
+                {
+                    var currentLambda = (SimpleLambdaExpressionSyntax)selectArguments[i];
+                    var currentParameter = currentLambda.Parameter;
+                    var currentParameterName = currentParameter.Identifier.Text;
 
-                var parameterSymbol = 
-                    currentParameter.Identifier.Text == LinqHelper.GeneratedLambdaParameterName 
-                    ? null 
-                    : semanticModel.GetDeclaredSymbol(currentParameter);
+                    var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
 
-                var substituteRewriter = new SubstituteRewriter(
-                    currentParameterName,
-                    parameterSymbol,
-                    semanticModel,
-                    resultInvocation);
+                    var substituteRewriter = new SubstituteRewriter(
+                        currentParameterName,
+                        parameterSymbol,
+                        semanticModel,
+                        resultInvocation);
 
-                resultInvocation = (InvocationExpressionSyntax)currentLambda
-                    .Body
-                    .Accept(substituteRewriter);
+                    resultInvocation = (InvocationExpressionSyntax)currentLambda
+                        .Body
+                        .Accept(substituteRewriter);
+                }
+                else
+                {
+                    resultInvocation = ExtendedSyntaxFactory.MakeInvocation(
+                        selectArguments[i],
+                        resultInvocation);
+                }
             }
 
             var newLambda = SyntaxFactory.SimpleLambdaExpression(
-                firstProjectionParameter,
+                firstParameter,
                 resultInvocation);
 
-            var newInvocation = SyntaxFactory.InvocationExpression(
+            var newInvocation = ExtendedSyntaxFactory.MakeInvocation(
                 innerMostWhereAccess,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(newLambda)
-                    )
-                )
-            );
+                newLambda);
 
             return newInvocation;
         }

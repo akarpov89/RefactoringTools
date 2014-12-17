@@ -35,6 +35,7 @@
   <ItemGroup>
     <Compile Include="Helpers\AsyncLazy.cs" />
     <Compile Include="Helpers\DataFlowAnalysisHelper.cs" />
+    <Compile Include="Helpers\ExtendedSyntaxFactory.cs" />
     <Compile Include="Helpers\FunctionCompositionChecker.cs" />
     <Compile Include="Helpers\Rewriters\InvocationReplacer.cs" />
     <Compile Include="Helpers\LinqHelper.cs" />

@@ -93,7 +93,7 @@ namespace RefactoringTools
 
             var factors = FactorizeExpression(filterExpression);
 
-            var newInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
+            var newInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
                 invocation.Expression,
                 filterParameter,
                 factors[0]);
@@ -105,7 +105,7 @@ namespace RefactoringTools
                     newInvocation,
                     SyntaxFactory.IdentifierName(LinqHelper.WhereMethodName));
 
-                newInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
+                newInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
                     memberAccess,
                     filterParameter,
                     factors[i]);

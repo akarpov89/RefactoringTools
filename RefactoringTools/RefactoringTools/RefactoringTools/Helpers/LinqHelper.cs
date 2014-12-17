@@ -22,14 +22,6 @@ namespace RefactoringTools
         public const string WhereMethodName = "Where";
         public const string SelectMethodName = "Select";
 
-        internal const string GeneratedLambdaParameterName = "____generated____lambdaArgument____";
-
-        private static readonly ParameterSyntax GeneratedLambdaParameter =
-            SyntaxFactory.Parameter(SyntaxFactory.Identifier(GeneratedLambdaParameterName));
-
-        private static readonly IdentifierNameSyntax GeneratedIdentifierForLambda =
-            SyntaxFactory.IdentifierName(SyntaxFactory.Identifier(GeneratedLambdaParameterName));
-
         #endregion
 
         #region TryFindMethodSequence
@@ -37,10 +29,10 @@ namespace RefactoringTools
         public static bool TryFindMethodSequence(
             SyntaxNode containerNode,
             string methodName,
-            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
+            Func<ExpressionSyntax, bool> argumentPredicate,
             out InvocationExpressionSyntax outerMostInvocation,
             out MemberAccessExpressionSyntax innerMostMethodAccess,
-            out List<SimpleLambdaExpressionSyntax> methodArguments)
+            out List<ExpressionSyntax> methodArguments)
         {
             outerMostInvocation = null;
             innerMostMethodAccess = null;
@@ -48,12 +40,12 @@ namespace RefactoringTools
 
             InvocationExpressionSyntax outerInvocation;
             MemberAccessExpressionSyntax innerMemberAccess;
-            var argumentsStack = new Stack<SimpleLambdaExpressionSyntax>();
+            var argumentsStack = new Stack<ExpressionSyntax>();
 
             bool isFound = TryFindDoubleCall(
                 containerNode,
                 methodName,
-                lambdaPredicate,
+                argumentPredicate,
                 argumentsStack,
                 out outerInvocation,
                 out innerMemberAccess);
@@ -63,7 +55,7 @@ namespace RefactoringTools
 
             innerMostMethodAccess = FindInnerMostMethodAccess(
                 methodName,
-                lambdaPredicate,
+                argumentPredicate,
                 innerMemberAccess,
                 argumentsStack);
 
@@ -71,48 +63,36 @@ namespace RefactoringTools
 
             outerMostInvocation = FindOuterMostMethodInvocation(
                 methodName,
-                lambdaPredicate,
+                argumentPredicate,
                 outerInvocation,
                 methodArguments);
 
             return true;
         }
 
-        private static bool TryGetLambdaFromArgument(
-            ArgumentSyntax argument, 
-            out SimpleLambdaExpressionSyntax lambda)
+        private static bool TryGetLambdaLikeExpressionFromArgument(
+            ArgumentSyntax argument,
+            out ExpressionSyntax argumentExpression)
         {
-            if (argument.Expression.IsKind(SyntaxKind.SimpleLambdaExpression))
+            var expression = argument.Expression;
+            
+            if (expression.IsKind(SyntaxKind.SimpleLambdaExpression)
+                || expression.IsKind(SyntaxKind.IdentifierName)
+                || expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
-                lambda = (SimpleLambdaExpressionSyntax)argument.Expression;
+                argumentExpression = expression;
                 return true;
             }
 
-            if (argument.Expression.IsKind(SyntaxKind.IdentifierName)
-                || argument.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
-            {
-                var invocation = SyntaxFactory.InvocationExpression(
-                    argument.Expression,
-                    SyntaxFactory.ArgumentList(
-                        SyntaxFactory.SingletonSeparatedList(
-                            SyntaxFactory.Argument(GeneratedIdentifierForLambda)
-                        )
-                    )
-                );
-
-                lambda = SyntaxFactory.SimpleLambdaExpression(GeneratedLambdaParameter, invocation);
-                return true;
-            }
-
-            lambda = null;
+            argumentExpression = null;
             return false;
         }
 
         private static bool TryFindDoubleCall(
             SyntaxNode containerNode,
             string methodName,
-            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
-            Stack<SimpleLambdaExpressionSyntax> methodArguments,
+            Func<ExpressionSyntax, bool> argumentPredicate,
+            Stack<ExpressionSyntax> methodArguments,
             out InvocationExpressionSyntax outerInvocation,
             out MemberAccessExpressionSyntax innerMemberAccess)
         {
@@ -146,11 +126,11 @@ namespace RefactoringTools
 
                 var outerArgument = outerInvocation.ArgumentList.Arguments[0];
 
-                SimpleLambdaExpressionSyntax outerLambda;
-                if (!TryGetLambdaFromArgument(outerArgument, out outerLambda))
+                ExpressionSyntax outerArgumentExpression;
+                if (!TryGetLambdaLikeExpressionFromArgument(outerArgument, out outerArgumentExpression))
                     continue;
 
-                if (lambdaPredicate != null && !lambdaPredicate(outerLambda))
+                if (argumentPredicate != null && !argumentPredicate(outerArgumentExpression))
                     continue;
 
                 if (!outerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -166,11 +146,11 @@ namespace RefactoringTools
 
                 var innerArgument = innerInvocation.ArgumentList.Arguments[0];
 
-                SimpleLambdaExpressionSyntax innerLambda;
-                if (!TryGetLambdaFromArgument(innerArgument, out innerLambda))
+                ExpressionSyntax innerArgumentExpression;
+                if (!TryGetLambdaLikeExpressionFromArgument(innerArgument, out innerArgumentExpression))
                     continue;
 
-                if (lambdaPredicate != null && !lambdaPredicate(innerLambda))
+                if (argumentPredicate != null && !argumentPredicate(innerArgumentExpression))
                     continue;
 
                 if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -183,8 +163,8 @@ namespace RefactoringTools
 
                 isFound = true;
 
-                methodArguments.Push(outerLambda);
-                methodArguments.Push(innerLambda);
+                methodArguments.Push(outerArgumentExpression);
+                methodArguments.Push(innerArgumentExpression);
 
                 break;
             }
@@ -194,9 +174,9 @@ namespace RefactoringTools
 
         private static MemberAccessExpressionSyntax FindInnerMostMethodAccess(
             string methodName,
-            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
+            Func<ExpressionSyntax, bool> argumentPredicate,
             MemberAccessExpressionSyntax memberAccess,
-            Stack<SimpleLambdaExpressionSyntax> methodArguments)
+            Stack<ExpressionSyntax> methodArguments)
         {
             var tempMemberAccess = memberAccess;
 
@@ -212,11 +192,11 @@ namespace RefactoringTools
 
                 var innerArgument = innerInvocation.ArgumentList.Arguments[0];
 
-                SimpleLambdaExpressionSyntax innerLambda;
-                if (!TryGetLambdaFromArgument(innerArgument, out innerLambda))
+                ExpressionSyntax innerArgumentExpression;
+                if (!TryGetLambdaLikeExpressionFromArgument(innerArgument, out innerArgumentExpression))
                     break;
 
-                if (lambdaPredicate != null && !lambdaPredicate(innerLambda))
+                if (argumentPredicate != null && !argumentPredicate(innerArgumentExpression))
                     break;
 
                 if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -229,7 +209,7 @@ namespace RefactoringTools
 
                 tempMemberAccess = temp;
 
-                methodArguments.Push(innerLambda);
+                methodArguments.Push(innerArgumentExpression);
             }
 
             return tempMemberAccess;
@@ -237,9 +217,9 @@ namespace RefactoringTools
 
         private static InvocationExpressionSyntax FindOuterMostMethodInvocation(
             string methodName,
-            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
+            Func<ExpressionSyntax, bool> lambdaPredicate,
             InvocationExpressionSyntax invocation,
-            List<SimpleLambdaExpressionSyntax> methodArguments)
+            List<ExpressionSyntax> methodArguments)
         {
             var tempOuterInvocation = invocation;
 
@@ -263,14 +243,14 @@ namespace RefactoringTools
 
                 var tempArgument = temp.ArgumentList.Arguments[0];
 
-                SimpleLambdaExpressionSyntax tempLambda;
-                if (!TryGetLambdaFromArgument(tempArgument, out tempLambda))
+                ExpressionSyntax tempArgumentExpression;
+                if (!TryGetLambdaLikeExpressionFromArgument(tempArgument, out tempArgumentExpression))
                     break;
 
-                if (lambdaPredicate != null && !lambdaPredicate(tempLambda))
+                if (lambdaPredicate != null && !lambdaPredicate(tempArgumentExpression))
                     break;
 
-                methodArguments.Add(tempLambda);
+                methodArguments.Add(tempArgumentExpression);
 
                 tempOuterInvocation = temp;
             }
@@ -333,45 +313,6 @@ namespace RefactoringTools
 
         #endregion
 
-        public static InvocationExpressionSyntax MakeInvocationWithLambdaArgument(
-            ExpressionSyntax expression,
-            ParameterSyntax lambdaParameter,
-            ExpressionSyntax lambdaBody)
-        {
-            ExpressionSyntax argument = null;
-
-            if (lambdaBody.IsKind(SyntaxKind.InvocationExpression))
-            {
-                var invocationBody = (InvocationExpressionSyntax)lambdaBody;
-
-                var arguments = invocationBody.ArgumentList.Arguments;
-
-                if (arguments.Count == 1 && arguments[0].Expression.IsKind(SyntaxKind.IdentifierName))
-                {
-                    var invocationArgument = (IdentifierNameSyntax)arguments[0].Expression;
-
-                    if (invocationArgument.Identifier.Text == lambdaParameter.Identifier.Text)
-                    {
-                        argument = invocationBody.Expression;
-                    }
-                }
-            }
-
-            if (argument == null)
-            {
-                argument = SyntaxFactory.SimpleLambdaExpression(lambdaParameter, lambdaBody);
-            }
-
-            var newInvocation = SyntaxFactory.InvocationExpression(
-                expression,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(argument)
-                    )
-                )
-            );
-
-            return newInvocation;
-        }
+        
     }
 }

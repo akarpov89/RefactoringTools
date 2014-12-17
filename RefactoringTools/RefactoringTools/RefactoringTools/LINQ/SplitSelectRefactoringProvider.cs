@@ -122,7 +122,7 @@ namespace RefactoringTools
                     semanticModel, 
                     i);
 
-            var newSelectInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
+            var newSelectInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
                 selectInvocation.Expression,
                 lambdaParameter,
                 invocationStack[0]);
@@ -144,7 +144,7 @@ namespace RefactoringTools
                     newSelectInvocation,
                     SyntaxFactory.IdentifierName(LinqHelper.SelectMethodName));
 
-                newSelectInvocation = LinqHelper.MakeInvocationWithLambdaArgument(
+                newSelectInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
                     memberAccess,
                     lambdaParameter,
                     processedInnerInvocation);

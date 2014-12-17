@@ -49,7 +49,7 @@ namespace RefactoringTools
 
             InvocationExpressionSyntax outerMostInvocation;
             MemberAccessExpressionSyntax innerMostWhereAccess;
-            List<SimpleLambdaExpressionSyntax> whereArgumentsList;
+            List<ExpressionSyntax> whereArgumentsList;
 
             bool isFound = LinqHelper.TryFindMethodSequence(
                 statement,
@@ -79,7 +79,7 @@ namespace RefactoringTools
             Document document, 
             InvocationExpressionSyntax outerMostInvocation, 
             MemberAccessExpressionSyntax innerMostWhereAccess, 
-            List<SimpleLambdaExpressionSyntax> whereArguments,
+            List<ExpressionSyntax> whereArguments,
             CancellationToken c)
         {
             var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
@@ -106,89 +106,94 @@ namespace RefactoringTools
         private InvocationExpressionSyntax Merge(
             InvocationExpressionSyntax outerMostInvocation, 
             MemberAccessExpressionSyntax innerMostWhereAccess, 
-            List<SimpleLambdaExpressionSyntax> whereArguments,
+            List<ExpressionSyntax> whereArguments,
             SemanticModel semanticModel)
         {
-            var firstFilter = whereArguments[0];
 
-            var parameterName = firstFilter.Parameter.Identifier.Text;
-            var firstFilterParameter = firstFilter.Parameter;
-            var firstFilterBody = firstFilter.Body;
-            var parameterIdentifierName = SyntaxFactory.IdentifierName(firstFilterParameter.Identifier);
+            var firstArgument = whereArguments[0];
 
-            if (parameterName == LinqHelper.GeneratedLambdaParameterName)
+            string parameterName;
+            ParameterSyntax firstParameter;
+            IdentifierNameSyntax firstParameterIdentifier;
+            ExpressionSyntax filterExpression;
+
+            if (firstArgument.IsKind(SyntaxKind.SimpleLambdaExpression))
+            {
+                var lambda = (SimpleLambdaExpressionSyntax)firstArgument;
+                firstParameter = lambda.Parameter;
+                parameterName = firstParameter.Identifier.Text;
+                firstParameterIdentifier = SyntaxFactory.IdentifierName(firstParameter.Identifier);
+                filterExpression = MakeExpressionFromLambdaBody(lambda.Body);
+            }
+            else
             {
                 parameterName = NameHelper.GetLambdaParameterName(
-                    outerMostInvocation.SpanStart, 
+                    outerMostInvocation.SpanStart,
                     semanticModel);
 
                 var parameterIdentifier = SyntaxFactory
                     .Identifier(parameterName)
                     .WithAdditionalAnnotations(RenameAnnotation.Create());
 
-                firstFilterParameter = SyntaxFactory.Parameter(parameterIdentifier);
+                firstParameter = SyntaxFactory.Parameter(parameterIdentifier);
 
-                parameterIdentifierName = SyntaxFactory.IdentifierName(parameterIdentifier);
+                firstParameterIdentifier = SyntaxFactory.IdentifierName(parameterIdentifier);
 
-                var renamer = new SubstituteRewriter(
-                    LinqHelper.GeneratedLambdaParameterName, 
-                    null, 
-                    semanticModel, 
-                    parameterIdentifierName);
-
-                firstFilterBody = (ExpressionSyntax)firstFilterBody.Accept(renamer);
+                filterExpression = ExtendedSyntaxFactory.MakeInvocation(
+                    firstArgument,
+                    firstParameterIdentifier);
             }
 
-            ExpressionSyntax filterExpression = MakeExpressionFromLambdaBody(firstFilterBody);
 
             for (int i = 1; i < whereArguments.Count; ++i)
             {
-                var currentLambda = whereArguments[i];
-                var currentParameter = currentLambda.Parameter;
-                var currentParameterName = currentParameter.Identifier.Text;
-
                 ExpressionSyntax andOperand;
 
-                if (currentParameterName != parameterName)
+                if (whereArguments[i].IsKind(SyntaxKind.SimpleLambdaExpression))
                 {
-                    var parameterSymbol =
-                        currentParameter.Identifier.Text == LinqHelper.GeneratedLambdaParameterName
-                        ? null
-                        : semanticModel.GetDeclaredSymbol(currentParameter);
+                    var currentLambda = (SimpleLambdaExpressionSyntax)whereArguments[i];
+                    var currentParameter = currentLambda.Parameter;
+                    var currentParameterName = currentParameter.Identifier.Text;
 
-                    var substituteRewriter = new SubstituteRewriter(
-                        currentParameterName,
-                        parameterSymbol,
-                        semanticModel,
-                        parameterIdentifierName);
+                    if (currentParameterName != parameterName)
+                    {
+                        var parameterSymbol = semanticModel.GetDeclaredSymbol(currentParameter);
 
-                    var newBody = (CSharpSyntaxNode)currentLambda.Body.Accept(substituteRewriter);
+                        var substituteRewriter = new SubstituteRewriter(
+                            currentParameterName,
+                            parameterSymbol,
+                            semanticModel,
+                            firstParameterIdentifier);
 
-                    andOperand = MakeExpressionFromLambdaBody(newBody);
+                        var newBody = (CSharpSyntaxNode)currentLambda.Body.Accept(substituteRewriter);
+
+                        andOperand = MakeExpressionFromLambdaBody(newBody);
+                    }
+                    else
+                    {
+                        andOperand = MakeExpressionFromLambdaBody(currentLambda.Body);
+                    }
                 }
                 else
                 {
-                    andOperand = MakeExpressionFromLambdaBody(currentLambda.Body);
+                    andOperand = ExtendedSyntaxFactory.MakeInvocation(
+                        whereArguments[i],
+                        firstParameterIdentifier);
                 }
 
                 filterExpression = SyntaxFactory.BinaryExpression(
-                    SyntaxKind.LogicalAndExpression, 
-                    filterExpression, 
+                    SyntaxKind.LogicalAndExpression,
+                    filterExpression,
                     andOperand);
             }
 
             var newLambda = SyntaxFactory.SimpleLambdaExpression(
-                firstFilterParameter, 
+                firstParameter, 
                 filterExpression);
 
-            var newInvocation = SyntaxFactory.InvocationExpression(
-                innerMostWhereAccess,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(newLambda)
-                    )
-                )
-            );
+            var newInvocation = ExtendedSyntaxFactory.MakeInvocation(
+                innerMostWhereAccess, 
+                newLambda);
 
             return newInvocation;
         }
