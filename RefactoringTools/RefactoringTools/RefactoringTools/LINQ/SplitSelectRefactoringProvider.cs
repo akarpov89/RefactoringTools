@@ -51,160 +51,22 @@ namespace RefactoringTools
                 .GetSemanticModelAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            InvocationExpressionSyntax selectInvocation;
-            SimpleLambdaExpressionSyntax projection;
-            Stack<InvocationExpressionSyntax> invocationStack = null;
+            Func<SyntaxNode, SyntaxNode> action;
 
-            if (!LinqHelper.TryFindMethodInvocation(
-                statement,
-                LinqHelper.SelectMethodName,
-                selectArgument => IsFunctionComposition(
-                    selectArgument, 
-                    semanticModel,
-                    out invocationStack),
-                out selectInvocation,
-                out projection))
-            {
+            if (!SelectSplitter.TryGetAction(statement, semanticModel, out action))
                 return;
-            }
 
-            var action = CodeAction.Create(
+            var codeAction = CodeAction.Create(
                 "Split Select projection",
-                c => SplitSelectAsync(
-                    selectInvocation,
-                    projection,
-                    invocationStack.ToArray(),
-                    document,
-                    c)
+                c =>
+                {
+                    var newRoot = action(root);
+
+                    return Task.FromResult(document.WithSyntaxRoot(newRoot));
+                }
             );
 
-            context.RegisterRefactoring(action);
+            context.RegisterRefactoring(codeAction);
         }
-
-        private static async Task<Document> SplitSelectAsync(            
-            InvocationExpressionSyntax selectInvocation,
-            SimpleLambdaExpressionSyntax projection,
-            InvocationExpressionSyntax[] invocationStack,            
-            Document document,
-            CancellationToken c)
-        {
-            var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
-
-            var newSelectInvocation = SplitFunctionComposition(
-                selectInvocation,
-                projection,
-                invocationStack,
-                semanticModel);
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
-
-            syntaxRoot = syntaxRoot.ReplaceNode(selectInvocation, newSelectInvocation);
-
-            syntaxRoot = syntaxRoot.Format();
-
-            return document.WithSyntaxRoot(syntaxRoot);
-        }
-
-        private static InvocationExpressionSyntax SplitFunctionComposition(
-            InvocationExpressionSyntax selectInvocation, 
-            SimpleLambdaExpressionSyntax projection,
-            InvocationExpressionSyntax[] invocationStack,
-            SemanticModel semanticModel)
-        {
-            var lambdaParameter = projection.Parameter;
-            var parameterName = lambdaParameter.Identifier.Text;
-            var parameterSymbol = semanticModel.GetDeclaredSymbol(lambdaParameter);
-
-            Func<InvocationExpressionSyntax, bool> isNeedToReplaceInvocation = i => 
-                DataFlowAnalysisHelper.IsIdentifierReferencedIn(
-                    parameterName, 
-                    parameterSymbol, 
-                    semanticModel, 
-                    i);
-
-            var newSelectInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
-                selectInvocation.Expression,
-                lambdaParameter,
-                invocationStack[0]);
-
-            var invocationReplacer = new InvocationReplacer(
-                isNeedToReplaceInvocation,
-                SyntaxFactory.IdentifierName(parameterName));
-
-            for (int i = 1; i < invocationStack.Length; ++i)
-            {
-                var innerInvocation = invocationStack[i];
-
-                var processedInnerInvocation = ReplaceInvocationsInArguments(
-                    innerInvocation,
-                    invocationReplacer);
-
-                var memberAccess = SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    newSelectInvocation,
-                    SyntaxFactory.IdentifierName(LinqHelper.SelectMethodName));
-
-                newSelectInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
-                    memberAccess,
-                    lambdaParameter,
-                    processedInnerInvocation);
-            }
-
-            return newSelectInvocation.WithTriviaFrom(selectInvocation);
-        }
-
-        private static InvocationExpressionSyntax ReplaceInvocationsInArguments(
-            InvocationExpressionSyntax invocation,
-            InvocationReplacer replacer)
-        {
-            var newArguments = new SeparatedSyntaxList<ArgumentSyntax>();
-
-            foreach (var argument in invocation.ArgumentList.Arguments)
-            {
-                var newArgument = (ArgumentSyntax)argument.Accept(replacer);
-                newArguments = newArguments.Add(newArgument);
-            }
-
-            return SyntaxFactory.InvocationExpression(
-                invocation.Expression,
-                SyntaxFactory.ArgumentList(newArguments));
-        }        
-
-        private static bool IsFunctionComposition(
-            SimpleLambdaExpressionSyntax selectArgument, 
-            SemanticModel semanticModel,
-            out Stack<InvocationExpressionSyntax> invocationStack)
-        {
-            invocationStack = null;
-
-            if (!selectArgument.Body.IsKind(SyntaxKind.InvocationExpression))
-                return false;
-
-            var outerInvocation = (InvocationExpressionSyntax)selectArgument.Body;
-
-            bool hasInnerInvocation = false;
-
-            foreach (var argument in outerInvocation.ArgumentList.Arguments)
-            {
-                if (argument.Expression.IsKind(SyntaxKind.InvocationExpression))
-                {
-                    hasInnerInvocation = true;
-                    break;
-                }
-            }
-
-            if (!hasInnerInvocation)
-                return false;
-
-            var parameterName = selectArgument.Parameter.Identifier.Text;
-            var parameterSymbol = semanticModel.GetDeclaredSymbol(selectArgument.Parameter);
-
-            var compositionChecker = new FunctionCompositionChecker(
-                parameterName,
-                parameterSymbol,
-                semanticModel);
-
-            return compositionChecker.IsComposition(outerInvocation, out invocationStack);
-        }
-    }        
+    }
 }
