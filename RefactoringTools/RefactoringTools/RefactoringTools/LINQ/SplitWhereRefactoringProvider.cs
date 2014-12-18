@@ -46,102 +46,22 @@ namespace RefactoringTools
             if (statement == null || statement.IsKind(SyntaxKind.Block))
                 return;
 
-            InvocationExpressionSyntax whereInvocation;
-            SimpleLambdaExpressionSyntax filter;
+            Func<SyntaxNode, SyntaxNode> action;
 
-            if (!LinqHelper.TryFindMethodInvocation(
-                statement, 
-                LinqHelper.WhereMethodName, 
-                lambda => lambda.Body.IsKind(SyntaxKind.LogicalAndExpression), 
-                out whereInvocation, 
-                out filter))
-            {
+            if (!WhereSplitter.TryGetAction(statement, out action))
                 return;
-            }
 
-            var action = CodeAction.Create(
+            var codeAction = CodeAction.Create(
                 "Split Where filter",
-                c => SplitWhereAsync(document, whereInvocation, filter, c)
+                c =>
+                {
+                    var newRoot = action(root);
+
+                    return Task.FromResult(document.WithSyntaxRoot(newRoot));
+                }
             );
 
-            context.RegisterRefactoring(action);
+            context.RegisterRefactoring(codeAction);
         }
-
-        private async Task<Document> SplitWhereAsync(
-            Document document,
-            InvocationExpressionSyntax whereInvocation,
-            SimpleLambdaExpressionSyntax filter,
-            CancellationToken c)
-        {
-            var newWhereInvocation = SplitLinqWhereInvocation(whereInvocation, filter);
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
-
-            syntaxRoot = syntaxRoot.ReplaceNode(whereInvocation, newWhereInvocation);
-
-            syntaxRoot = syntaxRoot.Format();
-
-            return document.WithSyntaxRoot(syntaxRoot);
-        }
-
-        private InvocationExpressionSyntax SplitLinqWhereInvocation(
-            InvocationExpressionSyntax invocation,
-            SimpleLambdaExpressionSyntax filter)
-        {
-            var filterParameter = filter.Parameter;
-            var filterExpression = (ExpressionSyntax)filter.Body;
-
-            var factors = FactorizeExpression(filterExpression);
-
-            var newInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
-                invocation.Expression,
-                filterParameter,
-                factors[0]);
-
-            for (int i = 1; i < factors.Count; ++i)
-            {
-                var memberAccess = SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    newInvocation,
-                    SyntaxFactory.IdentifierName(LinqHelper.WhereMethodName));
-
-                newInvocation = ExtendedSyntaxFactory.MakeInvocationWithLambdaArgument(
-                    memberAccess,
-                    filterParameter,
-                    factors[i]);
-            }
-
-            return newInvocation.WithTriviaFrom(invocation);
-        }
-
-        private List<ExpressionSyntax> FactorizeExpression(ExpressionSyntax expression)
-        {
-            var factors = new List<ExpressionSyntax>();
-
-            if (!expression.IsKind(SyntaxKind.LogicalAndExpression))
-            {
-                if (expression.IsKind(SyntaxKind.ParenthesizedExpression))
-                {
-                    var parenthesizedExpression = (ParenthesizedExpressionSyntax)expression;
-                    factors.Add(parenthesizedExpression.Expression);
-                }
-                else
-                {
-                    factors.Add(expression);
-                }
-                
-                return factors;
-            }
-
-            var logicalAndExpression = (BinaryExpressionSyntax)expression;
-
-            var leftFactors = FactorizeExpression(logicalAndExpression.Left);
-            var rightFactors = FactorizeExpression(logicalAndExpression.Right);
-
-            factors.AddRange(leftFactors);
-            factors.AddRange(rightFactors);
-
-            return factors;
-        }        
     }
 }

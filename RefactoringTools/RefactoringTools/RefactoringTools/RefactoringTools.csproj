@@ -50,6 +50,8 @@
     <Compile Include="LINQ\SelectSplitter.cs" />
     <Compile Include="LINQ\SplitSelectRefactoringProvider.cs" />
     <Compile Include="LINQ\SplitWhereRefactoringProvider.cs" />
+    <Compile Include="LINQ\WhereMerger.cs" />
+    <Compile Include="LINQ\WhereSplitter.cs" />
     <Compile Include="LoopRefactorings\ForeachToForLoopBodyRewriter.cs" />
     <Compile Include="LoopRefactorings\ForeachToForRefactoringProvider.cs" />
     <Compile Include="LoopRefactorings\ForToForeachLoopBodyRewriter.cs" />

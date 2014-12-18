@@ -1,19 +1,19 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.CodeRefactorings;
-using Microsoft.CodeAnalysis.Text;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Xunit;
 
-using RefactoringTools;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
+
+using Xunit;
+
+using RefactoringTools;
+
 
 namespace RefactoringToolsTest.LINQ
 {
@@ -27,6 +27,11 @@ namespace RefactoringToolsTest.LINQ
         delegate bool TryGetAction2(
             StatementSyntax statement,
             SemanticModel semanticModel,
+            out Func<SyntaxNode, SyntaxNode> action
+        );
+
+        delegate bool TryGetAction3(
+            StatementSyntax statement,
             out Func<SyntaxNode, SyntaxNode> action
         );
 
@@ -81,7 +86,7 @@ namespace Generated
 
 
         [Fact]
-        public void MergeSelectTest2()
+        public void MergeSelectTestWithMethodGroups()
         {
 
             var code =
@@ -95,7 +100,7 @@ namespace Generated
     class Program
     {
         static int f(int x) => x;
-        static in g(int x) => x;
+        static int g(int x) => x;
 
         static void Main(string[] args)
         {
@@ -116,7 +121,7 @@ namespace Generated
     class Program
     {
         static int f(int x) => x;
-        static in g(int x) => x;
+        static int g(int x) => x;
 
         static void Main(string[] args)
         {
@@ -130,7 +135,7 @@ namespace Generated
         }
 
         [Fact]
-        public void SplitSelectTest1()
+        public void SplitSelectTest()
         {
 
             var expected =
@@ -144,7 +149,7 @@ namespace Generated
     class Program
     {
         static int f(int x) => x;
-        static in g(int x) => x;
+        static int g(int x) => x;
 
         static void Main(string[] args)
         {
@@ -165,7 +170,7 @@ namespace Generated
     class Program
     {
         static int f(int x) => x;
-        static in g(int x) => x;
+        static int g(int x) => x;
 
         static void Main(string[] args)
         {
@@ -176,6 +181,120 @@ namespace Generated
     }
 }";
             Verify(SelectSplitter.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void MergeWhereTest()
+        {
+
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class C
+    {
+        public static B = true;
+    }
+    class Program
+    {
+        static bool f(int x) => true;
+        static bool g(int x) => false;
+
+        static void Main(string[] args)
+        {
+            var xs = new[] { 0 };
+
+            var r = xs.Where(f).Where(x => g(x)).Where(x => true).Where(x => C.B);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class C
+    {
+        public static B = true;
+    }
+    class Program
+    {
+        static bool f(int x) => true;
+        static bool g(int x) => false;
+
+        static void Main(string[] args)
+        {
+            var xs = new[] { 0 };
+
+            var r = xs.Where(x => f(x) && g(x) && true && C.B);
+        }
+    }
+}";
+            Verify(WhereMerger.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void SplitWhereTest()
+        {
+
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class C
+    {
+        public static B = true;
+    }
+    class Program
+    {
+        static bool f(int x) => true;
+        static bool g(int x) => false;
+
+        static void Main(string[] args)
+        {
+            var xs = new[] { 0 };
+
+            var r = xs.Where(f).Where(g).Where(x => true).Where(x => C.B);
+        }
+    }
+}";
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class C
+    {
+        public static B = true;
+    }
+    class Program
+    {
+        static bool f(int x) => true;
+        static bool g(int x) => false;
+
+        static void Main(string[] args)
+        {
+            var xs = new[] { 0 };
+
+            var r = xs.Where(x => f(x) && g(x) && true && C.B);
+        }
+    }
+}";
+            Verify(WhereSplitter.TryGetAction, expected, code);
         }
 
         private void Verify(
@@ -199,7 +318,7 @@ namespace Generated
             Func<SyntaxNode, SemanticModel, SyntaxNode> action = null;
             if (!tryGetAction(statement, out action))
             {
-                throw new Exception("SelectMerger.TryGetAction returned false");
+                throw new Exception("tryGetAction returned false");
             }
 
             var outputSyntaxRoot = action(syntaxRoot, semanticModel);
@@ -231,7 +350,39 @@ namespace Generated
             Func<SyntaxNode, SyntaxNode> action = null;
             if (!tryGetAction(statement, semanticModel, out action))
             {
-                throw new Exception("SelectMerger.TryGetAction returned false");
+                throw new Exception("tryGetAction returned false");
+            }
+
+            var outputSyntaxRoot = action(syntaxRoot);
+            var outputStatement = FindTestResult(outputSyntaxRoot);
+
+            Assert.Equal(
+                Format(expectedSyntaxRoot).ToFullString(),
+                Format(outputSyntaxRoot).ToFullString());
+        }
+
+        private void Verify(
+            TryGetAction3 tryGetAction,
+            string expected,
+            string code
+        )
+        {
+            var inputCompilation = CreateTestCompilation(code);
+            var expectedCompilation = CreateTestCompilation(expected);
+
+            var syntaxTree = inputCompilation.SyntaxTrees.First();
+            var syntaxRoot = syntaxTree.GetRoot();
+
+            var expectedSyntaxRoot = expectedCompilation.SyntaxTrees.First().GetRoot();
+
+            var semanticModel = inputCompilation.GetSemanticModel(syntaxTree);
+
+            var statement = FindTestResult(syntaxRoot);
+
+            Func<SyntaxNode, SyntaxNode> action = null;
+            if (!tryGetAction(statement, out action))
+            {
+                throw new Exception("tryGetAction returned false");
             }
 
             var outputSyntaxRoot = action(syntaxRoot);
@@ -269,7 +420,9 @@ namespace Generated
                 new[] { syntaxTree },
                 new[] { mscorlib }, 
                 new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-        }        private static MetadataReference mscorlib = MetadataReference.CreateFromAssembly(typeof(object).Assembly);
+        }
+
+        private static MetadataReference mscorlib = MetadataReference.CreateFromAssembly(typeof(object).Assembly);
         private static CustomWorkspace defaultWorkspace = new CustomWorkspace();
     }
 }
