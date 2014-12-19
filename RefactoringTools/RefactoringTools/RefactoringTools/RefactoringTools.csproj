@@ -59,6 +59,7 @@
     <Compile Include="LoopRefactorings\ForToForeachRefactoringProvider.cs" />
     <Compile Include="LoopRefactorings\ForToForEachTransformer.cs" />
     <Compile Include="MethodCallsRefactorings\CallsChainer.cs" />
+    <Compile Include="MethodCallsRefactorings\CallsUnchainer.cs" />
     <Compile Include="MethodCallsRefactorings\ChainMethodCallsRefactoringProvider.cs" />
     <Compile Include="MethodCallsRefactorings\UnchainMethodCallsRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\ChangeTypingRefactoringProvider.cs" />

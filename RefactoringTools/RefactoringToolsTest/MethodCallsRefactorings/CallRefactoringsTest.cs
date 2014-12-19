@@ -100,5 +100,245 @@ namespace Generated
 }";
             Verify<BlockSyntax, BlockSyntax>(Chain, expected, code);
         }
+
+        [Fact]
+        public void UnchainCalls()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Where(x => x.Length > 0).Where(x => x.Length < 10).Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Where(x => x.Length > 0);
+            var newVar1 = newVar0.Where(x => x.Length < 10);
+            var var2 = newVar1.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls1()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Where(x => x.Length > 0).Where(x => x.Length < 10)?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Where(x => x.Length > 0);
+            var newVar1 = newVar0.Where(x => x.Length < 10);
+            var var2 = newVar1?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls2()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Where(x => x.Length > 0)?.Where(x => x.Length < 10)?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Where(x => x.Length > 0);
+            var newVar1 = newVar0?.Where(x => x.Length < 10);
+            var var2 = newVar1?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls3()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Where(x => x.Length > 0).Where(x => x.Length < 10)?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Where(x => x.Length > 0);
+            var newVar1 = newVar0.Where(x => x.Length < 10);
+            var var2 = newVar1?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls4()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Where(x => x.Length > 0)?.Where(x => x.Length < 10)?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Where(x => x.Length > 0);
+            var newVar1 = newVar0?.Where(x => x.Length < 10);
+            var var2 = newVar1?.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls5()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Where(x => x.Length > 0)?.Where(x => x.Length < 10).Select(x => x.ToUpper());
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Where(x => x.Length > 0);
+            var newVar1 = newVar0?.Where(x => x.Length < 10);
+            var var2 = newVar1.Select(x => x.ToUpper());
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
     }
 }
