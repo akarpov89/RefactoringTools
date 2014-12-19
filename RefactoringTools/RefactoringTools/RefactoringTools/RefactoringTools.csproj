@@ -54,8 +54,10 @@
     <Compile Include="LINQ\WhereSplitter.cs" />
     <Compile Include="LoopRefactorings\ForeachToForLoopBodyRewriter.cs" />
     <Compile Include="LoopRefactorings\ForeachToForRefactoringProvider.cs" />
+    <Compile Include="LoopRefactorings\ForEachToForTransformer.cs" />
     <Compile Include="LoopRefactorings\ForToForeachLoopBodyRewriter.cs" />
     <Compile Include="LoopRefactorings\ForToForeachRefactoringProvider.cs" />
+    <Compile Include="LoopRefactorings\ForToForEachTransformer.cs" />
     <Compile Include="MethodCallsRefactorings\ChainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="MethodCallsRefactorings\UnchainConditionalMethodCallsRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\ChangeTypingRefactoringProvider.cs" />

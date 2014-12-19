@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Andrew Karpov. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,27 +17,13 @@ using Xunit;
 
 using RefactoringTools;
 
+using RefactoringToolsTest.TestHelper;
+
 
 namespace RefactoringToolsTest.LINQ
 {
     public class LinqRefactoringsTest
-    {
-        delegate bool TryGetAction1(
-            StatementSyntax statement, 
-            out Func<SyntaxNode, SemanticModel, SyntaxNode> action
-        );
-
-        delegate bool TryGetAction2(
-            StatementSyntax statement,
-            SemanticModel semanticModel,
-            out Func<SyntaxNode, SyntaxNode> action
-        );
-
-        delegate bool TryGetAction3(
-            StatementSyntax statement,
-            out Func<SyntaxNode, SyntaxNode> action
-        );
-
+    {        
         [Fact]
         public void MergeSelectTest1()
         {
@@ -81,7 +70,7 @@ namespace Generated
         }
     }
 }";
-            Verify(SelectMerger.TryGetAction, expected, code);
+            VerifyDeclaration<StatementSyntax>(SelectMerger.TryGetAction, expected, code);
         }
 
 
@@ -131,7 +120,7 @@ namespace Generated
         }
     }
 }";
-            Verify(SelectMerger.TryGetAction, expected, code);
+            VerifyDeclaration<StatementSyntax>(SelectMerger.TryGetAction, expected, code);
         }
 
         [Fact]
@@ -180,7 +169,7 @@ namespace Generated
         }
     }
 }";
-            Verify(SelectSplitter.TryGetAction, expected, code);
+            VerifyDeclaration<StatementSyntax>(SelectSplitter.TryGetAction, expected, code);
         }
 
         [Fact]
@@ -237,7 +226,7 @@ namespace Generated
         }
     }
 }";
-            Verify(WhereMerger.TryGetAction, expected, code);
+            VerifyDeclaration<StatementSyntax>(WhereMerger.TryGetAction, expected, code);
         }
 
         [Fact]
@@ -294,135 +283,7 @@ namespace Generated
         }
     }
 }";
-            Verify(WhereSplitter.TryGetAction, expected, code);
+            VerifyDeclaration<StatementSyntax>(WhereSplitter.TryGetAction, expected, code);
         }
-
-        private void Verify(
-            TryGetAction1 tryGetAction,
-            string expected, 
-            string code
-        )
-        {
-            var inputCompilation = CreateTestCompilation(code);
-            var expectedCompilation = CreateTestCompilation(expected);
-
-            var syntaxTree = inputCompilation.SyntaxTrees.First();
-            var syntaxRoot = syntaxTree.GetRoot();
-
-            var expectedSyntaxRoot = expectedCompilation.SyntaxTrees.First().GetRoot();
-
-            var semanticModel = inputCompilation.GetSemanticModel(syntaxTree);
-
-            var statement = FindTestResult(syntaxRoot);
-
-            Func<SyntaxNode, SemanticModel, SyntaxNode> action = null;
-            if (!tryGetAction(statement, out action))
-            {
-                throw new Exception("tryGetAction returned false");
-            }
-
-            var outputSyntaxRoot = action(syntaxRoot, semanticModel);
-            var outputStatement = FindTestResult(outputSyntaxRoot);
-
-            Assert.Equal(
-                Format(expectedSyntaxRoot).ToFullString(),
-                Format(outputSyntaxRoot).ToFullString());
-        }
-
-        private void Verify(
-            TryGetAction2 tryGetAction,
-            string expected,
-            string code
-        )
-        {
-            var inputCompilation = CreateTestCompilation(code);
-            var expectedCompilation = CreateTestCompilation(expected);
-
-            var syntaxTree = inputCompilation.SyntaxTrees.First();
-            var syntaxRoot = syntaxTree.GetRoot();
-
-            var expectedSyntaxRoot = expectedCompilation.SyntaxTrees.First().GetRoot();
-
-            var semanticModel = inputCompilation.GetSemanticModel(syntaxTree);
-
-            var statement = FindTestResult(syntaxRoot);
-
-            Func<SyntaxNode, SyntaxNode> action = null;
-            if (!tryGetAction(statement, semanticModel, out action))
-            {
-                throw new Exception("tryGetAction returned false");
-            }
-
-            var outputSyntaxRoot = action(syntaxRoot);
-            var outputStatement = FindTestResult(outputSyntaxRoot);
-
-            Assert.Equal(
-                Format(expectedSyntaxRoot).ToFullString(),
-                Format(outputSyntaxRoot).ToFullString());
-        }
-
-        private void Verify(
-            TryGetAction3 tryGetAction,
-            string expected,
-            string code
-        )
-        {
-            var inputCompilation = CreateTestCompilation(code);
-            var expectedCompilation = CreateTestCompilation(expected);
-
-            var syntaxTree = inputCompilation.SyntaxTrees.First();
-            var syntaxRoot = syntaxTree.GetRoot();
-
-            var expectedSyntaxRoot = expectedCompilation.SyntaxTrees.First().GetRoot();
-
-            var semanticModel = inputCompilation.GetSemanticModel(syntaxTree);
-
-            var statement = FindTestResult(syntaxRoot);
-
-            Func<SyntaxNode, SyntaxNode> action = null;
-            if (!tryGetAction(statement, out action))
-            {
-                throw new Exception("tryGetAction returned false");
-            }
-
-            var outputSyntaxRoot = action(syntaxRoot);
-            var outputStatement = FindTestResult(outputSyntaxRoot);
-
-            Assert.Equal(
-                Format(expectedSyntaxRoot).ToFullString(),
-                Format(outputSyntaxRoot).ToFullString());
-        }
-
-        private static SyntaxNode Format(SyntaxNode node)
-        {
-            return Formatter.Format(node, defaultWorkspace);
-        }
-
-        private static LocalDeclarationStatementSyntax FindTestResult(SyntaxNode root)
-        {
-            return root
-                .DescendantNodes()
-                .OfType<LocalDeclarationStatementSyntax>()
-                .FirstOrDefault(d =>
-                {
-                    return d.Declaration.Variables[0].Identifier.Text == "r";
-                });
-        }
-
-        private static Compilation CreateTestCompilation(string code)
-        {
-            MetadataReference[] references = { mscorlib };
-
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-
-            return CSharpCompilation.Create(
-                "Gen",
-                new[] { syntaxTree },
-                new[] { mscorlib }, 
-                new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-        }
-
-        private static MetadataReference mscorlib = MetadataReference.CreateFromAssembly(typeof(object).Assembly);
-        private static CustomWorkspace defaultWorkspace = new CustomWorkspace();
     }
 }

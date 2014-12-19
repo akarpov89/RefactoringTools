@@ -47,112 +47,25 @@ namespace RefactoringTools
 
             var forEachStatement = (ForEachStatementSyntax)statement;
 
-            var collectionExpression = forEachStatement.Expression;
-
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-            var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
+            Func<SyntaxNode, SyntaxNode> action;
 
-            string lengthMemberName;
-
-            bool hasLengthAndIndexer = DataFlowAnalysisHelper.HasLengthAndGetIndexer(
-                collectionType,
-                out lengthMemberName);
-
-            if (!hasLengthAndIndexer)
+            if (!ForEachToForTransformer.TryGetAction(forEachStatement, semanticModel, out action))
                 return;
 
-            var action = CodeAction.Create(
+            var codeAction = CodeAction.Create(
                 "Convert to for loop",
-                c => ConvertToFor(document, forEachStatement, lengthMemberName, c));
+                c =>
+                {
+                    var newRoot = action(root);
 
-            context.RegisterRefactoring(action);
-        }
+                    newRoot = newRoot.Format();
 
-        private async Task<Document> ConvertToFor(
-            Document document, ForEachStatementSyntax forEachStatement, string lengthMemberName, CancellationToken c)
-        {
-            var collectionExpression = forEachStatement.Expression;
+                    return Task.FromResult(document.WithSyntaxRoot(newRoot));
+                });
 
-            var semanticModel = await document.GetSemanticModelAsync(c).ConfigureAwait(false);
-
-            var collectionType = semanticModel.GetTypeInfo(collectionExpression).Type;
-
-            string counterName = NameHelper.GetLoopCounterName(forEachStatement.Statement.SpanStart, semanticModel);
-
-            var counterIdentifier = SyntaxFactory
-                .IdentifierName(counterName)
-                .WithAdditionalAnnotations(RenameAnnotation.Create());
-
-            var initializer = SyntaxFactory.EqualsValueClause(
-                SyntaxFactory.LiteralExpression(
-                    SyntaxKind.NumericLiteralExpression,
-                    SyntaxFactory.Literal(0)
-                )
-            );
-
-            var declarator = SyntaxFactory.VariableDeclarator(
-                SyntaxFactory.Identifier(counterName)
-                             .WithAdditionalAnnotations(RenameAnnotation.Create()), 
-                null, 
-                initializer);
-
-            var counterDeclaration = SyntaxFactory.VariableDeclaration(
-                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
-                SyntaxFactory.SingletonSeparatedList(declarator));
-
-            var lengthAccess =
-                SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    collectionExpression,
-                    SyntaxFactory.IdentifierName(lengthMemberName)
-                );
-
-            var condition = SyntaxFactory.BinaryExpression(
-                SyntaxKind.LessThanExpression,
-                counterIdentifier,
-                lengthAccess);
-
-            var counterIncrementor = SyntaxFactory.PostfixUnaryExpression(
-                SyntaxKind.PostIncrementExpression, 
-                counterIdentifier);
-
-            var elementAccess =
-                SyntaxFactory.ElementAccessExpression(
-                    collectionExpression,
-                    SyntaxFactory.BracketedArgumentList(
-                        SyntaxFactory.SingletonSeparatedList(
-                            SyntaxFactory.Argument(counterIdentifier)
-                        )
-                    )
-                );
-
-            var rewriter = new ForeachToForLoopBodyRewriter(
-                elementAccess,
-                forEachStatement.Identifier.Text,
-                semanticModel.GetDeclaredSymbol(forEachStatement),
-                semanticModel);
-
-            var newLoopBody = (StatementSyntax)forEachStatement.Statement.Accept(rewriter);
-
-            var forStatement = SyntaxFactory.ForStatement(
-                counterDeclaration,
-                SyntaxFactory.SeparatedList<ExpressionSyntax>(),
-                condition,
-                SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(counterIncrementor),
-                newLoopBody);
-
-            forStatement = forStatement
-                .WithTriviaFrom(forEachStatement)                
-                .WithAdditionalAnnotations(Simplifier.Annotation);
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(c).ConfigureAwait(false);
-
-            syntaxRoot = syntaxRoot.ReplaceNode((SyntaxNode)forEachStatement, forStatement);
-
-            syntaxRoot = syntaxRoot.Format();
-
-            return document.WithSyntaxRoot(syntaxRoot);
+            context.RegisterRefactoring(codeAction);
         }
     }
 }
