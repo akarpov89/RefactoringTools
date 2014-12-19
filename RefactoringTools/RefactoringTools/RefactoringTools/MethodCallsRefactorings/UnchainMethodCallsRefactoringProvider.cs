@@ -22,9 +22,9 @@ namespace RefactoringTools
     /// temporary variables.
     /// </summary>
     [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
-    internal class UnchainConditionalMethodCallsRefactoringProvider : CodeRefactoringProvider 
+    internal class UnchainMethodCallsRefactoringProvider : CodeRefactoringProvider 
     {
-        public const string RefactoringId = nameof(UnchainConditionalMethodCallsRefactoringProvider);
+        public const string RefactoringId = nameof(UnchainMethodCallsRefactoringProvider);
 
         public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {

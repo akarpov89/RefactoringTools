@@ -58,8 +58,9 @@
     <Compile Include="LoopRefactorings\ForToForeachLoopBodyRewriter.cs" />
     <Compile Include="LoopRefactorings\ForToForeachRefactoringProvider.cs" />
     <Compile Include="LoopRefactorings\ForToForEachTransformer.cs" />
-    <Compile Include="MethodCallsRefactorings\ChainConditionalMethodCallsRefactoringProvider.cs" />
-    <Compile Include="MethodCallsRefactorings\UnchainConditionalMethodCallsRefactoringProvider.cs" />
+    <Compile Include="MethodCallsRefactorings\CallsChainer.cs" />
+    <Compile Include="MethodCallsRefactorings\ChainMethodCallsRefactoringProvider.cs" />
+    <Compile Include="MethodCallsRefactorings\UnchainMethodCallsRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\ChangeTypingRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\StringExtensionRefactoringProvider.cs" />
     <Compile Include="Miscellaneous\Tuple\TupleCreateRefactoringProvider.cs" />

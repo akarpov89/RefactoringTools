@@ -99,6 +99,7 @@
   <ItemGroup>
     <Compile Include="LINQ\LinqRefactoringsTest.cs" />
     <Compile Include="LoopRefactorings\LoopRefactoringsTest.cs" />
+    <Compile Include="MethodCallsRefactorings\CallRefactoringsTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestHelper.cs" />
   </ItemGroup>

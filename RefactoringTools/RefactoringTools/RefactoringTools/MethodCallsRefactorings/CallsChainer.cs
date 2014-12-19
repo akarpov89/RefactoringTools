@@ -1,58 +1,32 @@
 ﻿// Copyright (c) Andrew Karpov. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Microsoft.CodeAnalysis.CodeRefactorings;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.Text;
-using System.Threading;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.CSharp;
-using System.Composition;
 
 namespace RefactoringTools
 {
-    /// <summary>
-    /// Provides refactoring for chaining method invocations and removing
-    /// temporary variables.
-    /// </summary>
-    [ExportCodeRefactoringProvider(RefactoringId, LanguageNames.CSharp), Shared]
-    internal class ChainConditionalMethodCallsRefactoringProvider : CodeRefactoringProvider 
+    internal static class CallsChainer
     {
-        public const string RefactoringId = nameof(ChainConditionalMethodCallsRefactoringProvider);
-
-        public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
+        public static bool TryGetAction(
+            BlockSyntax block,
+            List<StatementSyntax> selectedStatements,
+            out Func<SyntaxNode, SyntaxNode> action)
         {
-            var document = context.Document;
-            var cancellationToken = context.CancellationToken;
-            var span = context.Span;
-
-            var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-
-            var node = root.FindNode(span);
-
-            if (!node.IsKind(SyntaxKind.Block))
-                return;
-
-            var block = (BlockSyntax)node;
-
-            var selectedStatements = block.Statements.Where(s => s.IsWithin(span)).ToList();
-            var lastStatementInBlock = block.Statements.Last();
-
-            if (selectedStatements.Count < 2)
-                return;
+            action = null;
 
             var selectionStartIndex = block.Statements.IndexOf(selectedStatements[0]);
 
             var currentDeclarationInfo = GetDeclarationInfo(selectedStatements[0], false);
 
             if (currentDeclarationInfo == null)
-                return;
+                return false;
 
             //
             // Check all selected statements but last for pattern:
@@ -65,16 +39,16 @@ namespace RefactoringTools
                 var nextDeclarationInfo = GetDeclarationInfo(selectedStatements[i], true);
 
                 if (nextDeclarationInfo == null)
-                    return;
+                    return false;
 
                 var currentIdentifier = currentDeclarationInfo.Item1;
                 var nextInfocationTarget = nextDeclarationInfo.Item2;
 
                 if (currentIdentifier.ToString() != nextInfocationTarget.ToString())
-                    return;
+                    return false;
 
                 if (IsReferencedIn(currentIdentifier.ToString(), block, selectionStartIndex + i + 1))
-                    return;
+                    return false;
 
                 currentDeclarationInfo = nextDeclarationInfo;
             }
@@ -128,7 +102,7 @@ namespace RefactoringTools
             as ExpressionSyntax;
 
             if (lastExpression == null)
-                return;
+                return false;
 
             int lastVariableReferencesCount = GetReferencesCount(
                 lastVariableName,
@@ -136,21 +110,22 @@ namespace RefactoringTools
                 selectionStartIndex + selectedStatements.Count - 1);
 
             if (lastVariableReferencesCount > 1)
-                return;
+                return false;
 
             var declarations = selectedStatements.Take(selectedStatements.Count - 1).ToList();
 
-            var action = CodeAction.Create(
-                "Chain calls",
-                c => ChainMethodCalls(document, lastExpression, declarations, c));
+            action = syntaxRoot => 
+            {
+                return ChainMethodCalls(syntaxRoot, lastExpression, declarations);
+            };
 
-            context.RegisterRefactoring(action);
+            return true;
         }
 
-        private async Task<Solution> ChainMethodCalls(
-            Document document, 
-            ExpressionSyntax lastExpression, List<StatementSyntax> declarations, 
-            CancellationToken cancellationToken)
+        private static SyntaxNode ChainMethodCalls(
+            SyntaxNode syntaxRoot,
+            ExpressionSyntax lastExpression, 
+            List<StatementSyntax> declarations)
         {
             var expressions = declarations
                 .Cast<LocalDeclarationStatementSyntax>()
@@ -167,7 +142,7 @@ namespace RefactoringTools
 
                 if (mergedExpression.IsKind(SyntaxKind.InvocationExpression))
                 {
-                    var mergedInvocation = (InvocationExpressionSyntax)mergedExpression;                    
+                    var mergedInvocation = (InvocationExpressionSyntax)mergedExpression;
 
                     if (currentExpression.IsKind(SyntaxKind.InvocationExpression))
                     {
@@ -176,12 +151,12 @@ namespace RefactoringTools
                         var memberAccess = (MemberAccessExpressionSyntax)currentInvocation.Expression;
 
                         var newMemberAccess = SyntaxFactory.MemberAccessExpression(
-                            SyntaxKind.SimpleMemberAccessExpression, 
-                            mergedExpression, 
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            mergedExpression,
                             memberAccess.Name);
 
                         mergedExpression = SyntaxFactory.InvocationExpression(
-                            newMemberAccess, 
+                            newMemberAccess,
                             currentInvocation.ArgumentList);
                     }
                     else // if (currentExpression.IsKind(SyntaxKind.ConditionalAccessExpression))
@@ -189,7 +164,7 @@ namespace RefactoringTools
                         var currentConditionalAccess = (ConditionalAccessExpressionSyntax)currentExpression;
 
                         mergedExpression = SyntaxFactory.ConditionalAccessExpression(
-                            mergedExpression, 
+                            mergedExpression,
                             currentConditionalAccess.WhenNotNull);
                     }
                 }
@@ -209,11 +184,11 @@ namespace RefactoringTools
                             memberAccess.Name);
 
                         var newInvocation = SyntaxFactory.InvocationExpression(
-                            simpleMemberAccess, 
+                            simpleMemberAccess,
                             currentInvocation.ArgumentList);
 
                         mergedExpression = SyntaxFactory.ConditionalAccessExpression(
-                            mergedConditonalAccess.Expression, 
+                            mergedConditonalAccess.Expression,
                             newInvocation);
                     }
                     else // if (currentExpression.IsKind(SyntaxKind.ConditionalAccessExpression))
@@ -221,7 +196,7 @@ namespace RefactoringTools
                         var currentConditionalAccess = (ConditionalAccessExpressionSyntax)currentExpression;
 
                         mergedExpression = SyntaxFactory.ConditionalAccessExpression(
-                            mergedConditonalAccess, 
+                            mergedConditonalAccess,
                             currentConditionalAccess.WhenNotNull);
                     }
                 }
@@ -230,8 +205,6 @@ namespace RefactoringTools
             var block = (BlockSyntax)declarations[0].Parent;
 
             var declarationIndexes = declarations.Select(d => block.Statements.IndexOf(d)).ToArray();
-
-            var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
             syntaxRoot = syntaxRoot.ReplaceNodes(new SyntaxNode[] { lastExpression, block }, (oldNode, newNode) =>
             {
@@ -263,7 +236,7 @@ namespace RefactoringTools
 
             syntaxRoot = syntaxRoot.Format();
 
-            return document.WithSyntaxRoot(syntaxRoot).Project.Solution;
+            return syntaxRoot;
         }
 
         private static bool IsReferencedIn(string variableName, BlockSyntax block, int startStatementIndex)
@@ -365,6 +338,6 @@ namespace RefactoringTools
 
                 return new Tuple<SyntaxToken, IdentifierNameSyntax>(currentIdentifier, currentInvocationTarget);
             }
-        }        
+        }
     }
 }

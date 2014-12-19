@@ -105,8 +105,8 @@ namespace RefactoringToolsTest
             var outputStatement = findOutput(outputSyntaxRoot);
 
             Assert.Equal(
-                Format(expectedOutput).ToFullString(),
-                Format(outputStatement).ToFullString());
+                Format(expectedOutput).ToFullString().Trim(),
+                Format(outputStatement).ToFullString().Trim());
         }
 
         public static void Verify<TInput, TOutput>(
@@ -142,8 +142,8 @@ namespace RefactoringToolsTest
             var outputStatement = findOutput(outputSyntaxRoot);
 
             Assert.Equal(
-                Format(expectedOutput).ToFullString(),
-                Format(outputStatement).ToFullString());
+                Format(expectedOutput).ToFullString().Trim(),
+                Format(outputStatement).ToFullString().Trim());
         }
 
         public static void Verify<TInput, TOutput>(
@@ -179,8 +179,8 @@ namespace RefactoringToolsTest
             var outputStatement = findOutput(outputSyntaxRoot);
 
             Assert.Equal(
-                Format(expectedOutput).ToFullString(),
-                Format(outputStatement).ToFullString());
+                Format(expectedOutput).ToFullString().Trim(),
+                Format(outputStatement).ToFullString().Trim());
         }        
 
         public static void VerifyDeclaration<TStatement>(
