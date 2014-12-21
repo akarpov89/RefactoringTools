@@ -340,5 +340,602 @@ namespace Generated
 }";
             Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
         }
+
+        [Fact]
+        public void UnchainConditionalCalls6()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?[0].Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?[0].Select(x => x.ToString());            
+            var var2 = newVar0?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls7()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?[0]?.Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?[0]?.Select(x => x.ToString());            
+            var var2 = newVar0?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls8()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Select(x => x.ToString());
+            var var2 = newVar0?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls9()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Length.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Length.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls10()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Length?.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Length?.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls11()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Length?.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Length?.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls12()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Length.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Length.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls13()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Length.Length.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Length.Length.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls14()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Xxx?.Yyy.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx?.Yyy.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls15()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Xxx?.Yyy.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Xxx?.Yyy.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls16()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args.Xxx?.Yyy?.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Xxx?.Yyy?.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls17()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Xxx?.Yyy?.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx?.Yyy?.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls18()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Xxx?.Yyy.ToString().Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx?.Yyy.ToString();
+            var newVar1 = newVar0.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls19()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Xxx?.Yyy.ToString()?.Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx?.Yyy.ToString();
+            var newVar1 = newVar0?.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls20()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var var2 = args?.Xxx.Yyy?.ToString()?.Select(x => x.ToString())?.Where(x => true);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx.Yyy?.ToString();
+            var newVar1 = newVar0?.Select(x => x.ToString());
+            var var2 = newVar1?.Where(x => true);
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
     }
 }

@@ -54,7 +54,7 @@ namespace RefactoringTools
                         // We should check that all member accesses are method
 
                         bool isAllInvocations =
-                            memberAccesses.All(ma => ma.Expression.IsKind(SyntaxKind.InvocationExpression)) &&
+                            memberAccesses.Skip(1).All(ma => ma.Expression.IsKind(SyntaxKind.InvocationExpression)) &&
                             conditionalAccesses.All(ca => ca.WhenNotNull.IsKind(SyntaxKind.InvocationExpression));
 
                         return isAllInvocations;
@@ -98,6 +98,11 @@ namespace RefactoringTools
             }
 
             var declarations = new List<LocalDeclarationStatementSyntax>();
+
+            while (outer.Parent.IsKind(SyntaxKind.ConditionalAccessExpression))
+            {
+                outer = (ExpressionSyntax)outer.Parent;
+            }
 
             action = syntaxRoot => UnchainMultipleMethodCalls(syntaxRoot, outer);
 
@@ -261,6 +266,71 @@ namespace RefactoringTools
             }
         }
 
+        private static ExpressionSyntax PeekLastVariableValue(
+            List<LocalDeclarationStatementSyntax> declarations,
+            out SyntaxToken variableName)
+        {
+            var lastDeclaration = declarations[declarations.Count - 1];
+            var lastVariable = lastDeclaration.Declaration.Variables[0];
+
+            variableName = lastVariable.Identifier;
+            var variableValue = lastVariable.Initializer.Value;
+
+            return variableValue;
+        }
+
+        private static ExpressionSyntax PopLastVariableValue(
+            List<LocalDeclarationStatementSyntax> declarations)
+        {
+            SyntaxToken unused;
+            var variableValue = PeekLastVariableValue(declarations, out unused);
+
+            declarations.RemoveAt(declarations.Count - 1);
+
+            return variableValue;
+        }
+
+        private static ExpressionSyntax UnrollAccess(
+            ExpressionSyntax node, 
+            List<LocalDeclarationStatementSyntax> declarations, 
+            ref bool hasBinding)
+        {
+            if (node.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+            {
+                var simple = (MemberAccessExpressionSyntax)node;
+
+                var inner = UnrollAccess(simple.Expression, declarations, ref hasBinding);
+
+                return simple.WithExpression(inner);
+            }
+            else if (node.IsKind(SyntaxKind.ElementBindingExpression)
+                     || node.IsKind(SyntaxKind.MemberBindingExpression))
+            {
+                hasBinding = true;
+
+                var variableValue = PopLastVariableValue(declarations);
+
+                var conditionalAccess = SyntaxFactory.ConditionalAccessExpression(
+                    variableValue,
+                    node);
+
+                while (declarations.Count > 0)
+                {
+                    variableValue = PopLastVariableValue(declarations);
+
+                    conditionalAccess = SyntaxFactory.ConditionalAccessExpression(
+                        variableValue,
+                        conditionalAccess);
+                }
+
+                return conditionalAccess;
+            }
+            else
+            {
+                return node;
+            }
+        }
+
         private static ExpressionSyntax Unchain(
             ExpressionSyntax outer, 
             List<LocalDeclarationStatementSyntax> declarations)
@@ -287,7 +357,7 @@ namespace RefactoringTools
 
                 if (innerInvocation == null)
                 {
-                    AddDeclaration(conditionalAccess.Expression, declarations);
+                    AddDeclaration(conditionalAccess.Expression, declarations);                    
                 }
                 else
                 {
@@ -308,6 +378,19 @@ namespace RefactoringTools
 
                     if (innerInvocation == null)
                     {
+                        var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
+
+                        bool hasBinding = false;
+
+                        var unrolledAccess = UnrollAccess(memberAccess, declarations, ref hasBinding);
+
+                        if (hasBinding)
+                        {
+                            var newInvocation = invocation.WithExpression(unrolledAccess);
+
+                            return newInvocation;
+                        }
+                        
                         return outer;
                     }
                     else
@@ -332,24 +415,31 @@ namespace RefactoringTools
                 }
                 else
                 {
-                    var lastDeclaration = declarations[declarations.Count - 1];
-                    var lastVariable = lastDeclaration.Declaration.Variables[0];
-                    var variableValue = lastVariable.Initializer.Value;
+                    SyntaxToken identifierToken;
+                    var variableValue = PeekLastVariableValue(declarations, out identifierToken);
 
                     ConditionalAccessExpressionSyntax newConditionalAccess;
 
                     if (!variableValue.IsKind(SyntaxKind.InvocationExpression)
                         && !variableValue.IsKind(SyntaxKind.ConditionalAccessExpression))
                     {
-                        declarations.RemoveAt(declarations.Count - 1);
+                        PopLastVariableValue(declarations);
 
                         newConditionalAccess = SyntaxFactory.ConditionalAccessExpression(
                             variableValue, 
                             invocation);
+
+                        while (declarations.Count > 0)
+                        {
+                            variableValue = PopLastVariableValue(declarations);
+
+                            newConditionalAccess = SyntaxFactory.ConditionalAccessExpression(
+                                variableValue,
+                                newConditionalAccess);
+                        }
                     }
                     else
                     {
-                        var identifierToken = lastVariable.Identifier;
                         var identifier = SyntaxFactory.IdentifierName(identifierToken);
 
                         newConditionalAccess = SyntaxFactory.ConditionalAccessExpression(
