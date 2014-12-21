@@ -27,7 +27,7 @@ namespace RefactoringTools
             SimpleLambdaExpressionSyntax lambda;
 
             //
-            // Find LINQ All invocation where predicate is invertible.
+            // Find LINQ All/Any invocation where predicate is invertible.
             //
 
             int methodIndex;
