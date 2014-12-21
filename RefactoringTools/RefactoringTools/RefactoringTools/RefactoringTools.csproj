@@ -44,6 +44,8 @@
     <Compile Include="Helpers\Rewriters\SubstituteRewriter.cs" />
     <Compile Include="Helpers\SymbolHelper.cs" />
     <Compile Include="Helpers\SyntaxNodeExtensions.cs" />
+    <Compile Include="LINQ\AllAnyRefactoringProvider.cs" />
+    <Compile Include="LINQ\AllAnyTransformer.cs" />
     <Compile Include="LINQ\MergeSelectRefactoringProvider.cs" />
     <Compile Include="LINQ\MergeWhereRefactoringProvider.cs" />
     <Compile Include="LINQ\SelectMerger.cs" />

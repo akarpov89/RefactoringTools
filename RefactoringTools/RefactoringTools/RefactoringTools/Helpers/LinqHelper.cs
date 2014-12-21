@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,6 +22,8 @@ namespace RefactoringTools
 
         public const string WhereMethodName = "Where";
         public const string SelectMethodName = "Select";
+        public const string AllMethodName = "All";
+        public const string AnyMethodName = "Any";
 
         #endregion
 
@@ -269,8 +272,29 @@ namespace RefactoringTools
             out InvocationExpressionSyntax invocation,
             out SimpleLambdaExpressionSyntax methodArgument)
         {
+            int unusedIndex;
+
+            return TryFindMethodInvocation(
+                containerNode,
+                ImmutableArray.Create(methodName),
+                lambdaPredicate,
+                out invocation,
+                out methodArgument,
+                out unusedIndex);
+        }
+
+        public static bool TryFindMethodInvocation(
+            SyntaxNode containerNode,
+            ImmutableArray<string> methodNames,
+            Func<SimpleLambdaExpressionSyntax, bool> lambdaPredicate,
+            out InvocationExpressionSyntax invocation,
+            out SimpleLambdaExpressionSyntax methodArgument,
+            out int index)
+        {
             invocation = null;
             methodArgument = null;
+            index = -1;
+
             bool isFound = false;
 
             foreach (var node in containerNode.DescendantNodes())
@@ -285,7 +309,9 @@ namespace RefactoringTools
 
                 var memberAccess = (MemberAccessExpressionSyntax)currentInvocation.Expression;
 
-                if (memberAccess.Name.Identifier.Text != methodName)
+                index = methodNames.IndexOf(memberAccess.Name.Identifier.Text);
+
+                if (index == -1)
                     continue;
 
                 if (currentInvocation.ArgumentList.Arguments.Count != 1)
@@ -313,6 +339,6 @@ namespace RefactoringTools
 
         #endregion
 
-        
+
     }
 }

@@ -51,7 +51,7 @@ namespace RefactoringToolsTest
                 Func<SyntaxNode, SemanticModel, SyntaxNode> action;
 
                 if (!tryGetAction(inputStatement, out action))
-                    throw new Exception("tryGetAction returned false");
+                    return root;
 
                 return action(root, semanticModel);
             };
@@ -67,7 +67,7 @@ namespace RefactoringToolsTest
                 Func<SyntaxNode, SyntaxNode> action;
 
                 if (!tryGetAction(inputStatement, semanticModel, out action))
-                    throw new Exception("tryGetAction returned false");
+                    return root;
 
                 return action(root);
             };
@@ -83,7 +83,7 @@ namespace RefactoringToolsTest
                 Func<SyntaxNode, SyntaxNode> action;
 
                 if (!tryGetAction(inputStatement, out action))
-                    throw new Exception("tryGetAction returned false");
+                    return root;
 
                 return action(root);
             };
@@ -154,7 +154,8 @@ namespace RefactoringToolsTest
 
             Assert.Equal(
                 Format(expectedOutput).ToFullString().Trim(),
-                Format(outputStatement).ToFullString().Trim());
+                Format(outputStatement).ToFullString().Trim()
+            );
         }        
 
         public static void VerifyDeclaration<TStatement>(

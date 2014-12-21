@@ -285,5 +285,169 @@ namespace Generated
 }";
             VerifyDeclaration<StatementSyntax>(WhereSplitter.TryGetAction, expected, code);
         }
+
+        private static bool TryGetAllAnyTransform(
+            StatementSyntax statement,
+            out Func<SyntaxNode, SyntaxNode> action)
+        {
+            bool unused;
+
+            return AllAnyTransformer.TryGetAction(statement, out unused, out action);
+        }
+
+        [Fact]
+        public void AllToAnyTest1()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = xs.Where(x => x.Length > 10).All(x => !x.Contains(""foo""));
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = !xs.Where(x => x.Length > 10).Any(x => x.Contains(""foo""));
+        }
+    }
+}";
+            VerifyDeclaration<StatementSyntax>(TryGetAllAnyTransform, expected, code);
+        }
+
+        [Fact]
+        public void AllToAnyTest2()
+        {
+
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = xs.All(x => x.Length > 10);
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = !xs.Any(x => x.Length <= 10);
+        }
+    }
+}";
+            VerifyDeclaration<StatementSyntax>(TryGetAllAnyTransform, expected, code);
+        }
+
+        [Fact]
+        public void AnyToAllTest1()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = !xs.Where(x => x.Length > 10).Any(x => x.Contains(""foo""));
+        }
+    }
+}";
+
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = xs.Where(x => x.Length > 10).All(x => !x.Contains(""foo""));
+        }
+    }
+}";
+            VerifyDeclaration<StatementSyntax>(TryGetAllAnyTransform, expected, code);
+        }
+
+        [Fact]
+        public void AnyToAllTest2()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = xs.Where(x => x.Length > 10).Any(x => !x.Contains(""foo""));
+        }
+    }
+}";
+
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{    
+    class Program
+    {
+        static void Main(string[] args)
+        {            
+            var r = !xs.Where(x => x.Length > 10).All(x => x.Contains(""foo""));
+        }
+    }
+}";
+            VerifyDeclaration<StatementSyntax>(TryGetAllAnyTransform, expected, code);
+        }
     }
 }

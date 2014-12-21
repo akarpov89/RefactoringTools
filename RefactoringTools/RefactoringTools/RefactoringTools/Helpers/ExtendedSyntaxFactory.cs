@@ -55,14 +55,18 @@ namespace RefactoringTools
         {
             var invocation = SyntaxFactory.InvocationExpression(
                 expression,
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(argument)
-                    )
-                )
-            );
+                ArgumentList(argument));
 
             return invocation;
+        }
+
+        public static ArgumentListSyntax ArgumentList(ExpressionSyntax argument)
+        {
+            return SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(argument)
+                        )
+                   );
         }
     }
 }
