@@ -1057,5 +1057,472 @@ namespace Generated
 }";
             Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
         }
+
+        [Fact]
+        public void UnchainConditionalCalls24()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args.Xxx()?.Yyy();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args.Xxx();
+            var r = newVar0?.Yyy();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls25()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx().Yyy();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx();
+            var r = newVar0.Yyy();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls26()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx().Ppp.Yyy();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx().Ppp.Yyy();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls27()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx().Ppp.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx().Ppp.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls28()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx().Ppp?.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx().Ppp?.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls29()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp?.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp?.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls30()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls31()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp.Rrr.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp.Rrr.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls32()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp.Rrr?.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp.Rrr?.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls33()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp?.Rrr?.Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp?.Rrr?.Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls34()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp?.Rrr[0].Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp?.Rrr[0].Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
+
+        [Fact]
+        public void UnchainConditionalCalls35()
+        {
+            var code =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var r = args?.Xxx()?.Ppp.Rrr?[0].Yyy()?.Zzz();
+        }
+    }
+}";
+            var expected =
+@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Generated
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var newVar0 = args?.Xxx()?.Ppp.Rrr?[0].Yyy();
+            var r = newVar0?.Zzz();
+        }
+    }
+}";
+            Verify<StatementSyntax, BlockSyntax>(CallsUnchainer.TryGetAction, expected, code);
+        }
     }
 }

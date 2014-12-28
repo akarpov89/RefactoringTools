@@ -18,78 +18,26 @@ namespace RefactoringTools
             StatementSyntax statement,
             out Func<SyntaxNode, SyntaxNode> action)
         {
-            var outer = statement.DescendantNodes().FirstOrDefault(x =>
+            ExpressionSyntax outer = null;
+
+            foreach (var node in statement.DescendantNodes())
             {
-                if (x.IsKind(SyntaxKind.ConditionalAccessExpression))
+                if (node.IsKind(SyntaxKind.InvocationExpression)
+                    || node.IsKind(SyntaxKind.ConditionalAccessExpression))
                 {
-                    var conditionalAccess = (ConditionalAccessExpressionSyntax)x;
+                    var expression = (ExpressionSyntax)node;
 
-                    if (!conditionalAccess.WhenNotNull.IsKind(SyntaxKind.InvocationExpression)
-                        && !conditionalAccess.WhenNotNull.IsKind(SyntaxKind.ConditionalAccessExpression))
+                    int invocationsCount;
+
+                    bool isExpressionMatch = IsMatch(expression, 0, true, out invocationsCount);
+
+                    if (isExpressionMatch && invocationsCount >= 2)
                     {
-                        return false;
-                    }
-
-                    var accessesSource = conditionalAccess
-                        .WhenNotNull
-                        .DescendantNodes(n => !n.IsKind(SyntaxKind.ArgumentList));
-
-                    var memberAccesses = accessesSource
-                        .Where(n => n.IsKind(SyntaxKind.SimpleMemberAccessExpression))
-                        .Cast<MemberAccessExpressionSyntax>()
-                        .ToArray();
-
-                    var conditionalAccesses = accessesSource
-                        .Where(n => n.IsKind(SyntaxKind.ConditionalAccessExpression))
-                        .Cast<ConditionalAccessExpressionSyntax>()
-                        .ToArray();
-
-                    if ((memberAccesses.Length + conditionalAccesses.Length) == 0)
-                    {
-                        // We have two subsequent invocations. That's enough.
-                        return IsEndsWithInvocation(conditionalAccess.Expression);
-                    }
-                    else
-                    {
-                        // We should check that all member accesses are method
-
-                        bool isAllInvocations =
-                            memberAccesses.Skip(1).All(ma => ma.Expression.IsKind(SyntaxKind.InvocationExpression)) &&
-                            conditionalAccesses.All(ca => ca.WhenNotNull.IsKind(SyntaxKind.InvocationExpression));
-
-                        return isAllInvocations;
+                        outer = expression;
+                        break;
                     }
                 }
-                else if (x.IsKind(SyntaxKind.InvocationExpression))
-                {
-                    // No conditional access. Check if we have two outer invocations
-
-                    var outerInvocation = (InvocationExpressionSyntax)x;
-
-                    if (!outerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
-                        return false;
-
-                    var memberAccess = (MemberAccessExpressionSyntax)outerInvocation.Expression;
-
-                    if (!memberAccess.Expression.IsKind(SyntaxKind.InvocationExpression))
-                        return false;
-                    
-                    var innerInvocation = (InvocationExpressionSyntax)memberAccess.Expression;
-
-                    if (!innerInvocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression) &&
-                        !innerInvocation.Expression.IsKind(SyntaxKind.ConditionalAccessExpression))
-                    {
-                        return false;
-                    }
-
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            })
-            as ExpressionSyntax;
+            }
 
             if (outer == null)
             {
@@ -98,16 +46,195 @@ namespace RefactoringTools
             }
 
             var declarations = new List<LocalDeclarationStatementSyntax>();
-
+            
             while (outer.Parent.IsKind(SyntaxKind.ConditionalAccessExpression))
             {
-                outer = (ExpressionSyntax)outer.Parent;
+                var conditonalAccess = (ConditionalAccessExpressionSyntax)outer.Parent;
+
+                if (outer == conditonalAccess.WhenNotNull)
+                {
+                    outer = conditonalAccess;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             action = syntaxRoot => UnchainMultipleMethodCalls(syntaxRoot, outer);
 
             return true;
         }
+
+
+        //-----------------------------------------------------------------------------------------------
+
+        private static bool IsMatch(
+            ExpressionSyntax expression, 
+            int currentInvocationsCount,
+            bool canStartWithNonInvocations,
+            out int invocationsCount)
+        {
+            if (currentInvocationsCount >= 2 && canStartWithNonInvocations)
+            {
+                invocationsCount = 0;
+                return true;
+            }
+
+            if (expression.IsKind(SyntaxKind.ConditionalAccessExpression))
+            {
+                return IsMatch(
+                    (ConditionalAccessExpressionSyntax)expression,
+                    currentInvocationsCount,
+                    canStartWithNonInvocations,
+                    out invocationsCount);
+                
+            }
+            else if (expression.IsKind(SyntaxKind.InvocationExpression))
+            {
+                return IsMatch(
+                    (InvocationExpressionSyntax)expression,
+                    currentInvocationsCount,
+                    canStartWithNonInvocations,
+                    out invocationsCount);
+            }
+            else
+            {
+                invocationsCount = 0;
+                return false;
+            }
+        }
+
+        private static bool IsMatch(
+            ConditionalAccessExpressionSyntax conditionalAccess,
+            int currentInvocationsCount,
+            bool canStartWithNonInvocations,
+            out int invocationsCount)
+        {
+            invocationsCount = 0;
+
+            if (conditionalAccess.WhenNotNull.IsKind(SyntaxKind.InvocationExpression))
+            {
+                var whenNotNullInvocation = 
+                    (InvocationExpressionSyntax)conditionalAccess.WhenNotNull;
+
+                int x;
+                bool isWhenNotNullMatch = IsMatch(
+                    whenNotNullInvocation, 
+                    currentInvocationsCount + invocationsCount,
+                    false, 
+                    out x);
+
+                if (!isWhenNotNullMatch)
+                    return false;
+
+                invocationsCount += x;
+
+                if (currentInvocationsCount + invocationsCount >= 2 && canStartWithNonInvocations)
+                    return true;
+
+                int y;
+                bool isInnerExpressionMatch = IsMatch(
+                    conditionalAccess.Expression, 
+                    currentInvocationsCount + invocationsCount,
+                    canStartWithNonInvocations, 
+                    out y);
+
+                if (!isInnerExpressionMatch)
+                    return false;
+
+                invocationsCount += y;
+
+                return true;
+            }
+            else if (conditionalAccess.WhenNotNull.IsKind(SyntaxKind.ConditionalAccessExpression))
+            {
+                var whenNotNullConditionalAccess = 
+                    (ConditionalAccessExpressionSyntax)conditionalAccess.WhenNotNull;
+
+                int x;
+                bool isWhenNotNullMatch = IsMatch(
+                    whenNotNullConditionalAccess,
+                    currentInvocationsCount,
+                    false, 
+                    out x);
+
+                if (!isWhenNotNullMatch)
+                    return false;
+
+                invocationsCount = x;
+
+                if (currentInvocationsCount + invocationsCount >= 2 && canStartWithNonInvocations)
+                    return true;
+
+                int y;
+                bool isInnerExpressionMatch = IsMatch(
+                    conditionalAccess.Expression,
+                    currentInvocationsCount + invocationsCount, 
+                    canStartWithNonInvocations, 
+                    out y);
+
+                if (!isInnerExpressionMatch)
+                    return false;
+
+                invocationsCount += y;
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static bool IsMatch(
+            InvocationExpressionSyntax invocation,
+            int currentInvocationsCount,
+            bool canStartWithNonInvocations,
+            out int invocationsCount)
+        {
+            invocationsCount = 1;
+
+            if (currentInvocationsCount + invocationsCount >= 2 && canStartWithNonInvocations)
+                return true;
+
+            ExpressionSyntax innerExpression;
+
+            if (invocation.Expression.IsKind(SyntaxKind.MemberBindingExpression))
+            {
+                return true;
+            }
+            if (invocation.Expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+            {
+                var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
+                innerExpression = memberAccess.Expression;
+            }
+            else if (invocation.Expression.IsKind(SyntaxKind.ConditionalAccessExpression))
+            {
+                innerExpression = invocation.Expression;
+            }
+            else
+            {
+                return false;
+            }
+
+            int x;
+
+            bool isInnerExpressionMatch = IsMatch(
+                innerExpression,
+                currentInvocationsCount + invocationsCount,
+                canStartWithNonInvocations,
+                out x);
+
+            if (!isInnerExpressionMatch)
+                return false;
+
+            invocationsCount += x;
+
+            return true;
+        }
+
+        //-----------------------------------------------------------------------------------------------
 
         private static SyntaxNode UnchainMultipleMethodCalls(SyntaxNode syntaxRoot, ExpressionSyntax outer)
         {
@@ -121,27 +248,30 @@ namespace RefactoringTools
             var statements = parentBlock.Statements;
             var index = statements.IndexOf(parentStatement);
 
-            syntaxRoot = syntaxRoot.ReplaceNodes(new SyntaxNode[] { outer, parentBlock }, (oldNode, newNode) =>
-            {
-                if (oldNode == outer)
+            syntaxRoot = syntaxRoot.ReplaceNodes(
+                new SyntaxNode[] { outer, parentBlock }, 
+                (oldNode, newNode) =>
                 {
-                    return newOuter;
-                }
-                else if (oldNode == parentBlock)
-                {
-                    var updatedBlock = newNode as BlockSyntax;
+                    if (oldNode == outer)
+                    {
+                        return newOuter;
+                    }
+                    else if (oldNode == parentBlock)
+                    {
+                        var updatedBlock = newNode as BlockSyntax;
 
-                    var newStatements = updatedBlock.Statements.InsertRange(index, declarations);
+                        var newStatements = updatedBlock.Statements.InsertRange(index, declarations);
 
-                    var newBlock = SyntaxFactory.Block(newStatements);
+                        var newBlock = SyntaxFactory.Block(newStatements);
 
-                    return newBlock;
+                        return newBlock;
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
-                else
-                {
-                    return null;
-                }
-            });
+            );
 
             return syntaxRoot.Format();
         }
@@ -178,7 +308,9 @@ namespace RefactoringTools
 
             var newVariableName = "newVar" + declarations.Count.ToString();
 
-            var declarator = SyntaxFactory.VariableDeclarator(newVariableName).WithInitializer(equalsValue);
+            var declarator = SyntaxFactory
+                .VariableDeclarator(newVariableName)
+                .WithInitializer(equalsValue);
 
             var typeSyntax = SyntaxFactory.IdentifierName("var");
 
@@ -197,6 +329,11 @@ namespace RefactoringTools
         {
             if (expression.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
+                if (!expression.Parent.IsKind(SyntaxKind.InvocationExpression))
+                {
+                    return null;
+                }
+
                 var memberAccess = (MemberAccessExpressionSyntax)expression;
 
                 if (!memberAccess.Expression.IsKind(SyntaxKind.InvocationExpression) &&
@@ -325,6 +462,22 @@ namespace RefactoringTools
 
                 return conditionalAccess;
             }
+            else if (node.IsKind(SyntaxKind.ElementAccessExpression))
+            {
+                var elementAccess = (ElementAccessExpressionSyntax)node;
+
+                var expression = UnrollAccess(elementAccess.Expression, declarations, ref hasBinding);
+
+                return elementAccess.WithExpression(expression);
+            }
+            else if (node.IsKind(SyntaxKind.InvocationExpression))
+            {
+                var invocation = (InvocationExpressionSyntax)node;
+
+                var inner = UnrollAccess(invocation.Expression, declarations, ref hasBinding);
+
+                return invocation.WithExpression(inner);
+            }            
             else
             {
                 return node;
